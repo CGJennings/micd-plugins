@@ -1,0 +1,143 @@
+/// <reference lib="esnext"/>
+/// <reference lib="dom"/>
+/// <reference path="./types/mathicando-plugin.d.ts"/>
+
+`
+    name: Node Monitor
+    version: 1.0.0
+
+    A tool for developers that describes the document node
+    under the caret.
+`
+
+const ROOT_ELEMENT_ID = "node-monitor-root";
+if (document.getElementById(ROOT_ELEMENT_ID) == null) {
+    createMonitor();
+} else {
+    destroyMonitor();
+}
+
+function createMonitor() {
+    const rootEl = document.createElement("div");
+    rootEl.id = ROOT_ELEMENT_ID;
+    style(rootEl, `
+        position: absolute;
+        top: 4px;
+        left: 4px;
+        background: #fffc;
+        color: #333333f8;
+        width: 16rem;
+        border: 1px solid #fff;
+        border-radius: 4px;
+        box-shadow: 0 0 8px #0007, inset 0 0 12px 6px #fff;
+        backdrop-filter: blur(2px);
+    `);
+
+    // allow dragging monitor out of the way
+    const dragHandler = ev => {
+        const bounds = rootEl.getBoundingClientRect();
+        rootEl.style.left = `${Math.clamp(ev.pageX - rootEl._dx, 0, innerWidth - bounds.width)}px`;
+        rootEl.style.top = `${Math.clamp(ev.pageY - rootEl._dy, 0, innerHeight - bounds.height)}px`;
+        ev.preventDefault();
+    }
+    rootEl.onpointerdown = ev => {
+        rootEl._dx = ev.offsetX;
+        rootEl._dy = ev.offsetY;
+        rootEl.style.cursor = "move";
+        document.addEventListener("pointermove", dragHandler);
+        document.addEventListener("pointerup", function (pev) {
+            rootEl.style.cursor = null;
+            document.removeEventListener("pointermove", dragHandler);
+            document.removeEventListener("pointerup", this);
+            pev.preventDefault();
+        });
+    };
+    rootEl.ondragstart = ev => ev.preventDefault();
+    rootEl._winresize = ev => {
+        if (rootEl._resize !== null) {
+            cancelAnimationFrame(rootEl._resize);
+        }
+        rootEl._resize = requestAnimationFrame(() => {
+            rootEl._resize = null;
+            const bounds = rootEl.getBoundingClientRect();
+            rootEl.style.left = `${Math.clamp(bounds.left, 0, innerWidth - bounds.width)}px`;
+            rootEl.style.top = `${Math.clamp(bounds.top, 0, innerHeight - bounds.height)}px`;
+        });
+    }
+    window.addEventListener("resize", rootEl._winresize);
+
+    // add title and simple close button
+    const title = document.createElement("div");
+    title.textContent = "Node Monitor";
+    style(title, `
+        position: absolute;
+        top: 4px;
+        width: 100%;
+        text-align: center;
+        font-size: 80%;
+        font-weight: bold;
+        cursor: move;
+    `);
+    rootEl.appendChild(title);
+    const closeBtn = document.createElement("div");
+    style(closeBtn, `
+        position: absolute;
+        top: 4px;
+        ${micd.App.platform.isMacOS ? "left" : "right"}: 6px;
+        color: #b71c1c;
+        font: bold 0.5rem monospace;
+        cursor: pointer;
+    `);
+    closeBtn.textContent = "\u2573";
+    closeBtn.onpointerdown = destroyMonitor;
+    rootEl.appendChild(closeBtn);
+
+    // track and display info about the document node
+    const output = document.createElement("pre");
+    style(output, `
+        overflow-y: auto;
+        height: 10rem;
+        font-size: 80%;
+        margin: 1.5rem 6px 4px 6px;
+        white-space: pre-wrap;
+    `);
+    rootEl.appendChild(output);
+
+    const walker = new micd.Walker(editor);
+    rootEl._listener = function () {
+        walker.moveTo.caret();
+        const caretDesc = editor.hasSelection() ? editor.selection : editor.caretPosition;
+        output.textContent = caretDesc + "\n" + listProps(JSON.parse(walker.node));
+    };
+    editor.addEventListener("change", rootEl._listener);
+    editor.addEventListener("caret", rootEl._listener);
+    editor.addEventListener("selection", rootEl._listener);
+
+    // add the monitor to the editor window
+    rootEl._listener();
+    document.body.appendChild(rootEl);
+    view.focus();
+}
+
+function destroyMonitor() {
+    const rootEl = document.getElementById(ROOT_ELEMENT_ID);
+    window.removeEventListener("resize", rootEl._winresize);
+    editor.removeEventListener("change", rootEl._listener);
+    editor.removeEventListener("caret", rootEl._listener);
+    editor.removeEventListener("selection", rootEl._listener);
+    rootEl.remove();
+}
+
+function style(element, css) {
+    element.setAttribute("style", css.trim().replace(/\s+/g, " "));
+}
+
+function listProps(object) {
+    let list = JSON.stringify(object, null, 2);
+    if (list.startsWith("{")) {
+        list = list.substring(1, list.length - 1);
+    }
+    return list.replace(/"(\w+)":/g, "$1:")
+        .replace(/\s+(?=[^[\]]*\])/g, "")
+        .replace(/\n  /g, "\n");
+}

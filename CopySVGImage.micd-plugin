@@ -1,0 +1,20 @@
+/// <reference path="./types/mathicando-plugin.d.ts"/>
+
+`
+    name: Copy SVG Image
+    version: 1.0.0
+
+    The editor lets you either export content to an image with
+    a full range of options to choose from, or quickly copy
+    content to the clipboard as a PNG image with no options.
+    This plug-in adds a similar no-frills copy option for
+    SVG images to the <strong>Plugin</strong> menu.
+`
+
+const svg = await editor.toImage(true, {
+    format: "svg",
+    margin: 4,
+    container: "string"
+});
+micd.App.clipboard.copyText(svg);
+micd.ui.showToast("SVG image copied");

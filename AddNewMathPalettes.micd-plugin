@@ -1,0 +1,153 @@
+/// <reference path="./types/mathicando-plugin.d.ts"/>
+
+`
+    name: Add New Math Palettes
+    version: 1.0.0
+
+    This plugin adds some custom palettes. After installing it,
+    add the palettes by choosing the plugin from the <strong>Plugin</strong>
+    menu, then add them to the editor by choosing
+    <strong>View/Customize Panels</strong> from the menu.
+
+    Once you have run the plugin, you can uninstall it.
+    The custom palettes will remain available unless you choose to
+    remove them from <strong>Customize Panels</strong>. 
+`
+
+
+
+/*
+    Register custom palettes: after running the plug-in,
+    these can be added to the editor palettes via
+    View/Side Panels/Customize.
+*/
+
+// This palette description uses the fact that palette button
+// definitions that consist of a string of exactly one code point
+// that is also a legal variable name will insert that code point
+// as a new variable.
+micd.App.registerPalette("Animals", [
+    ["🐈", "🐕", "🐁", "🐀"],
+    ["🦔", "🐇", "🦨", "🦌"],
+    null,
+    ["🐄", "🐎", "🐪", "🦙"],
+    ["🐑", "🐖", "🐐", "🦘"],
+    null,
+    ["🐒", "🦍", "🦧", "🦥"],
+    ["🐅", "🦏", "🦛", "🐘"],
+    null,
+    ["🐌", "🐞", "🐛", "🦋"],
+    ["🦎", "🐢", "🐍", "🐊"],
+    null,
+    ["🦉", "🐦", "🦆", "🦩"],
+    ["🦚", "🦢", "🐧", "🦜"],
+    null,
+    ["🐠", "🐬", "🦈", "🐳"],
+    ["🦦", "🐙", "🦞", "🦀"],
+]);
+
+// This palette description creates custom buttons. When registering
+// a palette, the description must be JSON-compatible. However, custom
+// buttons can still be defined by passing a string containing the code
+// for the body of a handler function such as onUse.
+micd.App.registerPalette("SI Units", [
+    [
+        u("m", "Length (metre)"),
+        u("cm", "Length (centimetre)"),
+        u("g", "Mass (gram)"),
+        u("kg", "Mass (kilogram)"),
+    ],
+    [
+        u("m²", "Area (metre squared)", "m2"),
+        u("m³", "Volume (metre cubed)", "m3"),
+        u("L", "Liquid volume (litre)"),
+        u("kg/m³", "Density (kilogram per metre cubed)", "kgpm3"),
+    ],
+    null,
+    [
+        u("s", "Time (second)"),
+        u("Hz", "Frequency (hertz)"),
+        u("°C", "Temperature (degree Celsius)", "degc"),
+        u("K", "Temperature (kelvin)"),
+    ],
+    [
+        u("m/s", "Velocity (metre per second)", "mps"),
+        u("m/s²", "Acceleration (metre per second squared)", "mps2"),
+        u("m/s³", "Jerk (metre per second cubed)", "mps3"),
+        u("m/s⁴", "Snap (metre per second to the fourth)", "mps4"),
+    ],
+    null,
+    [
+        u("rad", "Angle (radian)"),
+        u("rad/s", "Angular velocity (radian per second)", "radps"),
+        u("rad/s²", "Angular acceleration (radians per second squared)", "radps2"),
+        u("sr", "Solid angle (steradian)")
+    ],
+    null,
+    [
+        u("N", "Force (newton)"),
+        u("Pa", "Pressure (pascal)"),
+        u("J", "Energy (joule)"),
+        u("W", "Power (watt)"),
+    ],
+    [
+        u("N·s", "Momentum (newton‐second)", "N1s"),
+        u("N·m·s", "Angular momentum (newton‐metre‐second)", "N1m1s"),
+        u("N·m", "Torque (newton‐metre)", "N1m"),
+        u("N/s", "Yank (newton per second)", "Nps"),
+    ],
+    null,
+    [
+        u("A", "Electrical current (ampere)"),
+        u("C", "Electric charge (coulomb)"),
+        u("V", "Voltage (volt)"),
+        u("F", "Electrical capacitance (farad)"),
+    ],
+    [
+        u("Ω", "Electrical resistance (ohm)"),
+        u("S", "Electrical conductance (siemens)"),
+        u("C/m³", "Electric charge density (coulomb per metre cubed)", "Cpm3"),
+        u("V/m", "Electric field strength (volt per metre)", "Vpm"),
+    ],
+    [
+        u("Wb", "Magnetic flux (weber)"),
+        u("T", "Magnetic induction (tesla)"),
+        u("H", "Electrical inductance (henry)"),
+        u("A/m", "Magnetic field strength (ampere per metre)", "Apm"),
+    ],
+    null,
+    [
+        u("cd", "Luminous intensity (candela)"),
+        u("lm", "Luminous flux (lumen)"),
+        u("lx", "Illuminance (lux)"),
+        u("cd/m²", "Luminance (candela per metre squared)", "cdpm2"),
+    ],
+    null,
+    [
+        u("Bq", "Radioactivity (becquerel)"),
+        u("Gy", "Absorbed dose (gray)"),
+        u("Gy/s", "Absorbed dose rate (gray per second)", "Gyps"),
+        u("Sv", "Equivalent dose (sievert)"),
+    ],
+    null,
+    [
+        u("mol", "Amount of substance (mole)"),
+        u("mol/kg", "Molarity (mole per kilogram)", "molpkg"),
+        u("kg/mol", "Molar mass (kilogram per mole)", "kgpmol"),
+        u("kat", "Catalytic activity (katal)"),
+    ]
+]);
+
+/** Returns a custom palette button definition that generates a Unit object. */
+function u(label, spokenLabel, typeVal) {
+    const abbrv = `.u${typeVal ?? label} `;
+    return {
+        label,
+        spokenLabel,
+        tooltip: `${spokenLabel}\n${abbrv.substring(1)}[space]`,
+        onUse: `shell.view.type(${JSON.stringify(abbrv)})`
+    }
+}
+
+micd.ui.showToast("New math palettes added");
+micd.App.openPanelCustomizer();
