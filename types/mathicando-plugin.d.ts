@@ -2,15 +2,2810 @@
 /// <reference lib="ESNext"/>
 
 /*
-  Copyright (c) 2016-2020 Math I Can Do Solutions Incorporated or its licensors.
-  Copyright (c) 2016-2020 Christopher G. Jennings.
+  Copyright (c) 2016-2021 Math I Can Do Solutions Incorporated or its licensors.
+  Copyright (c) 2016-2021 Christopher G. Jennings.
   All rights reserved. Permission granted to use or redistribute without modification.
+
+  Build: 17477 (March 21, 2021, 4:52 PM EST)
 */
 
 /**
- * The `micd` module is available as an object in the loading page's global (`window`) scope once the library has loaded and initialized. The principal classes that make up the MICD API are all found directly under this namespace. For example, a new math editor can be created using `let editor = new micd.Editor()`.
+ * When loaded as an ES6 or Node.js module, the exported `createApi` function returns a Promise that resolves to the `micd` namespace root once the API is loaded and initialized. When loaded directly by `<script>` tag, the `micd` module is available as an object in the loading page's global (`window`) scope. The principal classes that make up the MICD API are all found directly under this namespace. For example, a new math editor can be created using `let editor = new micd.Editor()`.
  */
 declare namespace micd {
+  /**
+   * Supports desktop app plugins.
+   * 
+   * *App exists only for plugins running in the desktop app. It is **undefined** when using the browser API.*
+   */
+  class App {
+    /** The version of the desktop app that the plugin is running in. */
+    static version: string;
+    /** Provides access to a simple key store. */
+    static storage: App.PluginStorage;
+    /** Provides access to the clipboard. */
+    static clipboard: App.PluginClipboardAccess;
+    /** Contains properties that describe the host platform. */
+    static platform: App.PlatformInfo;
+    /**
+     * Register a custom palette. Custom palettes can be added to the side panels through the panel customization dialog. Custom palette buttons can be defined, but `onUse` and `onAdd` must be set to strings whose content is script code that defines the body of the respective listener function. See [[PaletteButtonTemplate]].
+     * 
+     * @param label The text that the palette will display as its name. Any existing custom palette with the same name will be replaced.
+     * @param rows The button rows that make up the palette. Passing null will remove any previously registered custom palette with the same name.
+     */
+    static registerPalette(label: string, rows: micd.shell.PaletteRowTemplate[] | null): void;
+    /** Displays the panel customization dialog. */
+    static openPanelCustomizer(): void;
+  }
+  module App {
+    /**
+     * Allows plug-ins to store and recall string values. Stored values persist between app runs. They can be accessed by other plugins or by the same plugin running in other editor windows.
+     */
+    interface PluginStorage {
+      /**
+       * Returns the value of the specified key, or the default value if the key is not present.
+       * 
+       * @param key The name of the desired metadata property.
+       * @param defaultValue An optional default returned if the key is not present.
+       * @returns The value of the key, if present; otherwise the default value, or `undefined` if no default was specified.
+       */
+      get(key: string, defaultValue?: string): string | null;
+      /**
+       * Sets the value of the specified key. Setting a key to `undefined` or `null` has the same effect as removing the key.
+       * 
+       * @param key The name of the desired metadata property.
+       * @param value The value to associate with the key.
+       */
+      set(key: string, defaultValue?: string): void;
+      /**
+       * Removes the specified key, if it is present.
+       * 
+       * @param key The name of the key.
+       */
+      remove(key: string): void;
+      /**
+       * Returns a new array containing a copy of all of the defined keys. The order of the keys in the array is not guaranteed.
+       * 
+       * @returns A (possibly empty) array of the key names of all currently stored values.
+       */
+      keys(): string[];
+    }
+
+    /** Convenient clipboard access. */
+    interface PluginClipboardAccess {
+      /**
+       * Copies plain text to the clipboard.
+       * @param text The text to copy.
+       */
+      copyText(text: string): void;
+      /**
+       * Copies an image supplied to the clipboard.
+       * @param pngDataUrl The data URL of an image, in the PNG image format, to copy.
+       */
+      copyImage(pngDataUrl: string): void;
+    }
+
+    /** Properties that describe the type of device that the app is running on. */
+    interface PlatformInfo {
+      /** True if the editor app is running on a Linux device. */
+      isLinux: boolean;
+      /** True if the editor app is running on a MacOS device. */
+      isMacOs: boolean;
+      /** True if the editor app is running on a Windows device. */
+      isWindow: boolean;
+    }
+  }
+
+  /**
+   * The names of the subset of math editor commands that insert math objects without any additional special behaviours.
+   *
+   * @see [[EditorCommand]]
+   */
+  const enum MathObject {
+    /** The variable math object *Identifier*. */
+    identifier = "identifier",
+    /** The arithmetic math object *Plus*, which inserts the + operator. */
+    plus = "plus",
+    /** The arithmetic math object *Minus*, which inserts the − operator. */
+    minus = "minus",
+    /** The arithmetic math object *Times dot*, which inserts the ⋅ operator. */
+    timesDot = "timesDot",
+    /** The arithmetic math object *Times cross*, which inserts the ⨯ operator. */
+    timesCross = "timesCross",
+    /** The arithmetic math object *Divided by*, which inserts the ÷ operator. */
+    dividedBy = "dividedBy",
+    /** The arithmetic math object *Fraction*. */
+    fraction = "fraction",
+    /** The arithmetic math object *To the power*. */
+    toThePower = "toThePower",
+    /** The arithmetic math object *Subscript index*. */
+    subscriptIndex = "subscriptIndex",
+    /** The arithmetic math object *Plus or minus*, which inserts the ± operator. */
+    plusOrMinus = "plusOrMinus",
+    /** The arithmetic math object *Minus or plus*, which inserts the ∓ operator. */
+    minusOrPlus = "minusOrPlus",
+    /** The arithmetic math object *Square root*. */
+    squareRoot = "squareRoot",
+    /** The arithmetic math object *Cube root*. */
+    cubeRoot = "cubeRoot",
+    /** The arithmetic math object *Root*. */
+    root = "root",
+    /** The arithmetic math object *Percent*, which inserts the % operator. */
+    percent = "percent",
+    /** The arithmetic math object *Ratio*, which inserts the : operator. */
+    ratio = "ratio",
+    /** The arithmetic math object *Divides*, which inserts the ∣ operator. */
+    divides = "divides",
+    /** The arithmetic math object *Does not divide*, which inserts the ∤ operator. */
+    doesNotDivide = "doesNotDivide",
+    /** The arithmetic math object *Remainder after division*, which inserts the mod operator. */
+    remainderAfterDivision = "remainderAfterDivision",
+    /** The arithmetic math object *Congruent modulo*. */
+    congruentModulo = "congruentModulo",
+    /** The arithmetic math object *Not congruent modulo*. */
+    notCongruentModulo = "notCongruentModulo",
+    /** The relation math object *Equal to*, which inserts the = operator. */
+    equalTo = "equalTo",
+    /** The relation math object *Not equal to*, which inserts the ≠ operator. */
+    notEqualTo = "notEqualTo",
+    /** The relation math object *Approximately equal to*, which inserts the ≈ operator. */
+    approximatelyEqualTo = "approximatelyEqualTo",
+    /** The relation math object *Defined to be equal to*, which inserts the ≝ operator. */
+    definedToBeEqualTo = "definedToBeEqualTo",
+    /** The relation math object *Questioned equal to*, which inserts the ≟ operator. */
+    questionedEqualTo = "questionedEqualTo",
+    /** The relation math object *Identical to*, which inserts the ≡ operator. */
+    identicalTo = "identicalTo",
+    /** The relation math object *Not identical to*, which inserts the ≢ operator. */
+    notIdenticalTo = "notIdenticalTo",
+    /** The relation math object *Proportional to*, which inserts the ∝ operator. */
+    proportionalTo = "proportionalTo",
+    /** The relation math object *Corresponds to*, which inserts the ≙ operator. */
+    correspondsTo = "correspondsTo",
+    /** The relation math object *Less than*, which inserts the < operator. */
+    lessThan = "lessThan",
+    /** The relation math object *Greater than*, which inserts the > operator. */
+    greaterThan = "greaterThan",
+    /** The relation math object *Less than or equal to*, which inserts the ≤ operator. */
+    lessThanOrEqualTo = "lessThanOrEqualTo",
+    /** The relation math object *Greater than or equal to*, which inserts the ≥ operator. */
+    greaterThanOrEqualTo = "greaterThanOrEqualTo",
+    /** The relation math object *Not less than*, which inserts the ≮ operator. */
+    notLessThan = "notLessThan",
+    /** The relation math object *Not greater than*, which inserts the ≯ operator. */
+    notGreaterThan = "notGreaterThan",
+    /** The relation math object *Not less than or equal to*, which inserts the ≰ operator. */
+    notLessThanOrEqualTo = "notLessThanOrEqualTo",
+    /** The relation math object *Not greater than or equal to*, which inserts the ≱ operator. */
+    notGreaterThanOrEqualTo = "notGreaterThanOrEqualTo",
+    /** The relation math object *Much less than*, which inserts the ≪ operator. */
+    muchLessThan = "muchLessThan",
+    /** The relation math object *Much greater than*, which inserts the ≫ operator. */
+    muchGreaterThan = "muchGreaterThan",
+    /** The relation math object *Less than or approximately*, which inserts the ⪅ operator. */
+    lessThanOrApproximately = "lessThanOrApproximately",
+    /** The relation math object *Greater than or approximately*, which inserts the ⪆ operator. */
+    greaterThanOrApproximately = "greaterThanOrApproximately",
+    /** The relation math object *Precedes*, which inserts the ≺ operator. */
+    precedes = "precedes",
+    /** The relation math object *Succeeds*, which inserts the ≻ operator. */
+    succeeds = "succeeds",
+    /** The relation math object *Precedes or equal to*, which inserts the ≼ operator. */
+    precedesOrEqualTo = "precedesOrEqualTo",
+    /** The relation math object *Succeeds or equal to*, which inserts the ≽ operator. */
+    succeedsOrEqualTo = "succeedsOrEqualTo",
+    /** The relation math object *Does not precede*, which inserts the ⊀ operator. */
+    doesNotPrecede = "doesNotPrecede",
+    /** The relation math object *Does not succeed*, which inserts the ⊁ operator. */
+    doesNotSucceed = "doesNotSucceed",
+    /** The relation math object *Does not precede or equal*, which inserts the ⋠ operator. */
+    doesNotPrecedeOrEqual = "doesNotPrecedeOrEqual",
+    /** The relation math object *Does not succeed or equal*, which inserts the ⋡ operator. */
+    doesNotSucceedOrEqual = "doesNotSucceedOrEqual",
+    /** The bracket math object *Parentheses*, which inserts (…) brackets. */
+    parentheses = "parentheses",
+    /** The bracket math object *Brackets*, which inserts […] brackets. */
+    brackets = "brackets",
+    /** The bracket math object *Angle brackets*, which inserts ⟨…⟩ brackets. */
+    angleBrackets = "angleBrackets",
+    /** The bracket math object *Absolute value*, which inserts |…| brackets. */
+    absoluteValue = "absoluteValue",
+    /** The bracket math object *Floor*, which inserts ⌊…⌋ brackets. */
+    floor = "floor",
+    /** The bracket math object *Ceiling*, which inserts ⌈…⌉ brackets. */
+    ceiling = "ceiling",
+    /** The unit math object *Unit*. */
+    unit = "unit",
+    /** The unit math object *Degrees*. */
+    degrees = "degrees",
+    /** The unit math object *Arcminutes*. */
+    arcminutes = "arcminutes",
+    /** The unit math object *Arcseconds*. */
+    arcseconds = "arcseconds",
+    /** The unit math object *Degrees celsius*. */
+    degreesCelsius = "degreesCelsius",
+    /** The unit math object *Degrees fahrenheit*. */
+    degreesFahrenheit = "degreesFahrenheit",
+    /** The unit math object *Dollars*. */
+    dollars = "dollars",
+    /** The unit math object *Pounds sterling*. */
+    poundsSterling = "poundsSterling",
+    /** The unit math object *Euros*. */
+    euros = "euros",
+    /** The logic math object *Boolean true*. */
+    booleanTrue = "booleanTrue",
+    /** The logic math object *Boolean false*. */
+    booleanFalse = "booleanFalse",
+    /** The logic math object *Tautology*, which inserts the ⊤ operator. */
+    tautology = "tautology",
+    /** The logic math object *Contradiction*, which inserts the ⊥ operator. */
+    contradiction = "contradiction",
+    /** The logic math object *Conjunction*, which inserts the ∧ operator. */
+    conjunction = "conjunction",
+    /** The logic math object *Disjunction*, which inserts the ∨ operator. */
+    disjunction = "disjunction",
+    /** The logic math object *Exclusive disjunction*, which inserts the ⊻ operator. */
+    exclusiveDisjunction = "exclusiveDisjunction",
+    /** The logic math object *Negation*, which inserts the ¬ operator. */
+    negation = "negation",
+    /** The logic math object *Implies*, which inserts the ⇒ operator. */
+    implies = "implies",
+    /** The logic math object *Equivalent to*, which inserts the ⇔ operator. */
+    equivalentTo = "equivalentTo",
+    /** The logic math object *For all*, which inserts the ∀ operator. */
+    forAll = "forAll",
+    /** The logic math object *There exists*, which inserts the ∃ operator. */
+    thereExists = "thereExists",
+    /** The logic math object *There exists one*, which inserts the ∃¹ operator. */
+    thereExistsOne = "thereExistsOne",
+    /** The logic math object *Necessarily*, which inserts the ◻ operator. */
+    necessarily = "necessarily",
+    /** The logic math object *Possibly*, which inserts the ◊ operator. */
+    possibly = "possibly",
+    /** The logic math object *Provable*, which inserts the ⊢ operator. */
+    provable = "provable",
+    /** The logic math object *Entails*, which inserts the ⊨ operator. */
+    entails = "entails",
+    /** The logic math object *Therefore*, which inserts the ∴ operator. */
+    therefore = "therefore",
+    /** The logic math object *Because*, which inserts the ∵ operator. */
+    because = "because",
+    /** The logic math object *End of proof*, which inserts the ■ operator. */
+    endOfProof = "endOfProof",
+    /** The logic math object *n‐ary conjunction*, which inserts a big ⋀ operator. */
+    naryConjunction = "naryConjunction",
+    /** The logic math object *n‐ary disjunction*, which inserts a big ⋁ operator. */
+    naryDisjunction = "naryDisjunction",
+    /** The set math object *Set literal*, which inserts {…} brackets. */
+    setLiteral = "setLiteral",
+    /** The set math object *Set builder*. */
+    setBuilder = "setBuilder",
+    /** The set math object *Empty set*, which inserts the ∅ operator. */
+    emptySet = "emptySet",
+    /** The set math object *Power set*. */
+    powerSet = "powerSet",
+    /** The set math object *Separator*, which inserts the , operator. */
+    separator = "separator",
+    /** The set math object *Ellipsis*, which inserts the ⋯ operator. */
+    ellipsis = "ellipsis",
+    /** The set math object *Element of*, which inserts the ∈ operator. */
+    elementOf = "elementOf",
+    /** The set math object *Not an element of*, which inserts the ∉ operator. */
+    notAnElementOf = "notAnElementOf",
+    /** The set math object *Union*, which inserts the ∪ operator. */
+    union = "union",
+    /** The set math object *Intersection*, which inserts the ∩ operator. */
+    intersection = "intersection",
+    /** The set math object *Set difference*, which inserts the ∖ operator. */
+    setDifference = "setDifference",
+    /** The set math object *Symmetric difference*, which inserts the ⊖ operator. */
+    symmetricDifference = "symmetricDifference",
+    /** The set math object *Contains*, which inserts the ∋ operator. */
+    contains = "contains",
+    /** The set math object *Does not contain*, which inserts the ∌ operator. */
+    doesNotContain = "doesNotContain",
+    /** The set math object *Subset*, which inserts the ⊆ operator. */
+    subset = "subset",
+    /** The set math object *Not a subset*, which inserts the ⊈ operator. */
+    notASubset = "notASubset",
+    /** The set math object *Strict subset*, which inserts the ⊂ operator. */
+    strictSubset = "strictSubset",
+    /** The set math object *Not a strict subset*, which inserts the ⊄ operator. */
+    notAStrictSubset = "notAStrictSubset",
+    /** The set math object *Superset*, which inserts the ⊇ operator. */
+    superset = "superset",
+    /** The set math object *Not a superset*, which inserts the ⊉ operator. */
+    notASuperset = "notASuperset",
+    /** The set math object *Strict superset*, which inserts the ⊃ operator. */
+    strictSuperset = "strictSuperset",
+    /** The set math object *Not a strict superset*, which inserts the ⊅ operator. */
+    notAStrictSuperset = "notAStrictSuperset",
+    /** The set math object *Universal set*. */
+    universalSet = "universalSet",
+    /** The set math object *Natural numbers*. */
+    naturalNumbers = "naturalNumbers",
+    /** The set math object *Integer numbers*. */
+    integerNumbers = "integerNumbers",
+    /** The set math object *Rational numbers*. */
+    rationalNumbers = "rationalNumbers",
+    /** The set math object *Real numbers*. */
+    realNumbers = "realNumbers",
+    /** The set math object *Complex numbers*. */
+    complexNumbers = "complexNumbers",
+    /** The set math object *Prime numbers*. */
+    primeNumbers = "primeNumbers",
+    /** The set math object *Aleph number*. */
+    alephNumber = "alephNumber",
+    /** The set math object *Beth number*. */
+    bethNumber = "bethNumber",
+    /** The set math object *Closed interval*, which inserts an […, …] interval. */
+    closedInterval = "closedInterval",
+    /** The set math object *Left half open interval*, which inserts an (…, …] interval. */
+    leftHalfOpenInterval = "leftHalfOpenInterval",
+    /** The set math object *Right half open interval*, which inserts an […, …) interval. */
+    rightHalfOpenInterval = "rightHalfOpenInterval",
+    /** The set math object *Open interval*, which inserts an (…, …) interval. */
+    openInterval = "openInterval",
+    /** The set math object *n‐ary intersection*, which inserts a big ⋂ operator. */
+    naryIntersection = "naryIntersection",
+    /** The set math object *n‐ary union*, which inserts a big ⋃ operator. */
+    naryUnion = "naryUnion",
+    /** The geometry math object *Pi*. */
+    pi = "pi",
+    /** The geometry math object *Parallel to*, which inserts the ∥ operator. */
+    parallelTo = "parallelTo",
+    /** The geometry math object *Not parallel to*, which inserts the ∦ operator. */
+    notParallelTo = "notParallelTo",
+    /** The geometry math object *Perpendicular to*, which inserts the ⟂ operator. */
+    perpendicularTo = "perpendicularTo",
+    /** The geometry math object *Congruent to*, which inserts the ≅ operator. */
+    congruentTo = "congruentTo",
+    /** The geometry math object *Similar to*, which inserts the ∼ operator. */
+    similarTo = "similarTo",
+    /** The geometry math object *Angle*, which inserts the ∠ operator. */
+    angle = "angle",
+    /** The geometry math object *Measured angle*, which inserts the ∡ operator. */
+    measuredAngle = "measuredAngle",
+    /** The geometry math object *Spherical angle*, which inserts the ∢ operator. */
+    sphericalAngle = "sphericalAngle",
+    /** The geometry math object *Line from points*. */
+    lineFromPoints = "lineFromPoints",
+    /** The geometry math object *Line segment from points*. */
+    lineSegmentFromPoints = "lineSegmentFromPoints",
+    /** The geometry math object *Ray from points*. */
+    rayFromPoints = "rayFromPoints",
+    /** The geometry math object *Arc from points*. */
+    arcFromPoints = "arcFromPoints",
+    /** The geometry math object *Distance function*. */
+    distanceFunction = "distanceFunction",
+    /** The geometry math object *Measure function*. */
+    measureFunction = "measureFunction",
+    /** The geometry math object *Triangle*, which inserts the △ operator. */
+    triangle = "triangle",
+    /** The geometry math object *Square*, which inserts the □ operator. */
+    square = "square",
+    /** The geometry math object *Circle*, which inserts the ○ operator. */
+    circle = "circle",
+    /** The function math object *Function*. */
+    function = "function",
+    /** The function math object *Composite function*, which inserts the ∘ operator. */
+    compositeFunction = "compositeFunction",
+    /** The function math object *Inverse*. */
+    inverse = "inverse",
+    /** The function math object *Maps to*, which inserts the ↦ operator. */
+    mapsTo = "mapsTo",
+    /** The function math object *Piecewise function*. */
+    piecewiseFunction = "piecewiseFunction",
+    /** The function math object *Evaluate function*. */
+    evaluateFunction = "evaluateFunction",
+    /** The function math object *Greatest common divisor*. */
+    greatestCommonDivisor = "greatestCommonDivisor",
+    /** The function math object *Least common multiple*. */
+    leastCommonMultiple = "leastCommonMultiple",
+    /** The function math object *Minimum of*. */
+    minimumOf = "minimumOf",
+    /** The function math object *Maximum of*. */
+    maximumOf = "maximumOf",
+    /** The function math object *Integer part of*. */
+    integerPartOf = "integerPartOf",
+    /** The function math object *Fractional part of*. */
+    fractionalPartOf = "fractionalPartOf",
+    /** The function math object *Round*. */
+    round = "round",
+    /** The function math object *Signum*. */
+    signum = "signum",
+    /** The function math object *Random number*. */
+    randomNumber = "randomNumber",
+    /** The function math object *Logarithm*. */
+    logarithm = "logarithm",
+    /** The function math object *Decimal logarithm*. */
+    decimalLogarithm = "decimalLogarithm",
+    /** The function math object *Binary logarithm*. */
+    binaryLogarithm = "binaryLogarithm",
+    /** The function math object *Natural logarithm*. */
+    naturalLogarithm = "naturalLogarithm",
+    /** The function math object *Summation*, which inserts a big ∑ operator. */
+    summation = "summation",
+    /** The function math object *Product*, which inserts a big ∏ operator. */
+    product = "product",
+    /** The function math object *Coproduct*, which inserts a big ∐ operator. */
+    coproduct = "coproduct",
+    /** The combinatoric math object *Factorial*, which inserts the ! operator. */
+    factorial = "factorial",
+    /** The combinatoric math object *Rising factorial*. */
+    risingFactorial = "risingFactorial",
+    /** The combinatoric math object *Falling factorial*. */
+    fallingFactorial = "fallingFactorial",
+    /** The combinatoric math object *Binomial coefficient*. */
+    binomialCoefficient = "binomialCoefficient",
+    /** The combinatoric math object *Permutations*. */
+    permutations = "permutations",
+    /** The combinatoric math object *Permutations with repetitions*. */
+    permutationsWithRepetitions = "permutationsWithRepetitions",
+    /** The combinatoric math object *Combinations*. */
+    combinations = "combinations",
+    /** The combinatoric math object *Combinations with repetitions*. */
+    combinationsWithRepetitions = "combinationsWithRepetitions",
+    /** The combinatoric math object *Probability*. */
+    probability = "probability",
+    /** The combinatoric math object *Conditional probability*. */
+    conditionalProbability = "conditionalProbability",
+    /** The trigonometry math object *Sine*. */
+    sine = "sine",
+    /** The trigonometry math object *Cosine*. */
+    cosine = "cosine",
+    /** The trigonometry math object *Tangent*. */
+    tangent = "tangent",
+    /** The trigonometry math object *Cotangent*. */
+    cotangent = "cotangent",
+    /** The trigonometry math object *Secant*. */
+    secant = "secant",
+    /** The trigonometry math object *Cosecant*. */
+    cosecant = "cosecant",
+    /** The trigonometry math object *Arcsine*. */
+    arcsine = "arcsine",
+    /** The trigonometry math object *Arccosine*. */
+    arccosine = "arccosine",
+    /** The trigonometry math object *Arctangent*. */
+    arctangent = "arctangent",
+    /** The trigonometry math object *Arccotangent*. */
+    arccotangent = "arccotangent",
+    /** The trigonometry math object *Arcsecant*. */
+    arcsecant = "arcsecant",
+    /** The trigonometry math object *Arccosecant*. */
+    arccosecant = "arccosecant",
+    /** The trigonometry math object *Hyperbolic sine*. */
+    hyperbolicSine = "hyperbolicSine",
+    /** The trigonometry math object *Hyperbolic cosine*. */
+    hyperbolicCosine = "hyperbolicCosine",
+    /** The trigonometry math object *Hyperbolic tangent*. */
+    hyperbolicTangent = "hyperbolicTangent",
+    /** The trigonometry math object *Hyperbolic cotangent*. */
+    hyperbolicCotangent = "hyperbolicCotangent",
+    /** The trigonometry math object *Hyperbolic secant*. */
+    hyperbolicSecant = "hyperbolicSecant",
+    /** The trigonometry math object *Hyperbolic cosecant*. */
+    hyperbolicCosecant = "hyperbolicCosecant",
+    /** The trigonometry math object *Area hyperbolic sine*. */
+    areaHyperbolicSine = "areaHyperbolicSine",
+    /** The trigonometry math object *Area hyperbolic cosine*. */
+    areaHyperbolicCosine = "areaHyperbolicCosine",
+    /** The trigonometry math object *Area hyperbolic tangent*. */
+    areaHyperbolicTangent = "areaHyperbolicTangent",
+    /** The trigonometry math object *Area hyperbolic cotangent*. */
+    areaHyperbolicCotangent = "areaHyperbolicCotangent",
+    /** The trigonometry math object *Area hyperbolic secant*. */
+    areaHyperbolicSecant = "areaHyperbolicSecant",
+    /** The trigonometry math object *Area hyperbolic cosecant*. */
+    areaHyperbolicCosecant = "areaHyperbolicCosecant",
+    /** The complex number math object *Imaginary unit*. */
+    imaginaryUnit = "imaginaryUnit",
+    /** The complex number math object *Complex conjugate*. */
+    complexConjugate = "complexConjugate",
+    /** The complex number math object *Real part*. */
+    realPart = "realPart",
+    /** The complex number math object *Imaginary part*. */
+    imaginaryPart = "imaginaryPart",
+    /** The complex number math object *Argument of*. */
+    argumentOf = "argumentOf",
+    /** The matrix math object *Matrix*. */
+    matrix = "matrix",
+    /** The matrix math object *Determinant matrix*. */
+    determinantMatrix = "determinantMatrix",
+    /** The matrix math object *Transpose*. */
+    transpose = "transpose",
+    /** The matrix math object *Matrix element*. */
+    matrixElement = "matrixElement",
+    /** The matrix math object *Determinant*. */
+    determinant = "determinant",
+    /** The matrix math object *Rank*. */
+    rank = "rank",
+    /** The matrix math object *Trace*. */
+    trace = "trace",
+    /** The matrix math object *Hermitian conjugate*. */
+    hermitianConjugate = "hermitianConjugate",
+    /** The matrix math object *Vertical ellipsis*, which inserts the ⋮ operator. */
+    verticalEllipsis = "verticalEllipsis",
+    /** The matrix math object *Diagonal ellipsis*, which inserts the ⋱ operator. */
+    diagonalEllipsis = "diagonalEllipsis",
+    /** The calculus math object *Natural logarithm base*. */
+    naturalLogarithmBase = "naturalLogarithmBase",
+    /** The calculus math object *Infinity*. */
+    infinity = "infinity",
+    /** The calculus math object *Tends to*, which inserts the →​ operator. */
+    tendsTo = "tendsTo",
+    /** The calculus math object *Limit*. */
+    limit = "limit",
+    /** The calculus math object *Change in*. */
+    changeIn = "changeIn",
+    /** The calculus math object *Lagrange 1st derivative*. */
+    Lagrange1stDerivative = "Lagrange1stDerivative",
+    /** The calculus math object *Lagrange 2nd derivative*. */
+    Lagrange2ndDerivative = "Lagrange2ndDerivative",
+    /** The calculus math object *Lagrange 3rd derivative*. */
+    Lagrange3rdDerivative = "Lagrange3rdDerivative",
+    /** The calculus math object *Newton 1st derivative*. */
+    Newton1stDerivative = "Newton1stDerivative",
+    /** The calculus math object *Newton 2nd derivative*. */
+    Newton2ndDerivative = "Newton2ndDerivative",
+    /** The calculus math object *Leibniz 1st derivative*. */
+    Leibniz1stDerivative = "Leibniz1stDerivative",
+    /** The calculus math object *Leibniz 2nd derivative*. */
+    Leibniz2ndDerivative = "Leibniz2ndDerivative",
+    /** The calculus math object *Leibniz nth derivative*. */
+    LeibnizNthDerivative = "LeibnizNthDerivative",
+    /** The calculus math object *Integral*. */
+    integral = "integral",
+    /** The calculus math object *Double integral*. */
+    doubleIntegral = "doubleIntegral",
+    /** The calculus math object *Triple integral*. */
+    tripleIntegral = "tripleIntegral",
+    /** The calculus math object *Contour integral*. */
+    contourIntegral = "contourIntegral",
+    /** The calculus math object *Partial 1st derivative*. */
+    partial1stDerivative = "partial1stDerivative",
+    /** The calculus math object *Partial 2nd derivative*. */
+    partial2ndDerivative = "partial2ndDerivative",
+    /** The calculus math object *Partial 2nd derivative cross*. */
+    partial2ndDerivativeCross = "partial2ndDerivativeCross",
+    /** The calculus math object *Partial nth derivative*. */
+    partialNthDerivative = "partialNthDerivative",
+    /** The calculus math object *Del operator*, which inserts the ∇ operator. */
+    delOperator = "delOperator",
+    /** The calculus math object *Laplacian operator*, which inserts the ∇² operator. */
+    LaplacianOperator = "LaplacianOperator",
+    /** The calculus math object *Wave operator*, which inserts the ⧠ operator. */
+    waveOperator = "waveOperator",
+    /** The calculus math object *Gradient of*. */
+    gradientOf = "gradientOf",
+    /** The calculus math object *Divergence of*. */
+    divergenceOf = "divergenceOf",
+    /** The calculus math object *Rotation of*. */
+    rotationOf = "rotationOf",
+    /** The calculus math object *Convolution*, which inserts the ∗ operator. */
+    convolution = "convolution",
+    /** The calculus math object *Fourier transform*. */
+    FourierTransform = "FourierTransform",
+    /** The calculus math object *Laplace transform*. */
+    LaplaceTransform = "LaplaceTransform",
+    /** The computing math object *String literal*. */
+    stringLiteral = "stringLiteral",
+    /** The computing math object *Is assigned*, which inserts the := operator. */
+    isAssigned = "isAssigned",
+    /** The computing math object *Asymptotically equal to*, which inserts the ≃ operator. */
+    asymptoticallyEqualTo = "asymptoticallyEqualTo",
+    /** The computing math object *Not asymptotically equal to*, which inserts the ≄ operator. */
+    notAsymptoticallyEqualTo = "notAsymptoticallyEqualTo",
+    /** The computing math object *Big O*. */
+    big_O = "big_O",
+    /** The computing math object *Big Theta*. */
+    big_Theta = "big_Theta",
+    /** The computing math object *Big Omega*. */
+    big_Omega = "big_Omega",
+    /** The computing math object *Small o*. */
+    smallO = "smallO",
+    /** The computing math object *Small omega*. */
+    smallOmega = "smallOmega",
+    /** The computing math object *Lambda abstraction*. */
+    lambdaAbstraction = "lambdaAbstraction",
+    /** The computing math object *Noncapturing substitution*. */
+    noncapturingSubstitution = "noncapturingSubstitution",
+    /** The computing math object *Relational selection*. */
+    relationalSelection = "relationalSelection",
+    /** The computing math object *Relational projection*. */
+    relationalProjection = "relationalProjection",
+    /** The computing math object *Relational renaming*. */
+    relationalRenaming = "relationalRenaming",
+    /** The computing math object *Relational join*, which inserts the ⋈ operator. */
+    relationalJoin = "relationalJoin",
+    /** The education math object *Fill in the blank box*. */
+    fillInTheBlankBox = "fillInTheBlankBox",
+    /** The education math object *Spoiler box*. */
+    spoilerBox = "spoilerBox",
+    /** The education math object *Data table*. */
+    dataTable = "dataTable",
+    /** The education math object *Equation addition*. */
+    equationAddition = "equationAddition",
+    /** The education math object *Equation steps*. */
+    equationSteps = "equationSteps",
+    /** The education math object *Grid*. */
+    grid = "grid",
+    /** The education math object *Number line*. */
+    numberLine = "numberLine",
+    /** The education math object *Coordinate plane*. */
+    coordinatePlane = "coordinatePlane",
+    /** The group theory math object *Direct sum*, which inserts the ⊕ operator. */
+    directSum = "directSum",
+    /** The group theory math object *Direct product*, which inserts the ⊗ operator. */
+    directProduct = "directProduct",
+    /** The group theory math object *Semidirect product*, which inserts the ⋊ operator. */
+    semidirectProduct = "semidirectProduct",
+    /** The group theory math object *Wreath product*, which inserts the ≀ operator. */
+    wreathProduct = "wreathProduct",
+    /** The group theory math object *Normal subgroup*, which inserts the ⊲ operator. */
+    normalSubgroup = "normalSubgroup",
+    /** The group theory math object *Normal subgroup or equal*, which inserts the ⊴ operator. */
+    normalSubgroupOrEqual = "normalSubgroupOrEqual",
+    /** The group theory math object *Not a normal subgroup*, which inserts the ⋪ operator. */
+    notANormalSubgroup = "notANormalSubgroup",
+    /** The group theory math object *Generic operator*, which inserts the ⋆ operator. */
+    genericOperator = "genericOperator",
+    /** The group theory math object *Generic operator 2*, which inserts the ∙ operator. */
+    genericOperator2 = "genericOperator2",
+    /** The annotation math object *Brace over*. */
+    braceOver = "braceOver",
+    /** The annotation math object *Brace under*. */
+    braceUnder = "braceUnder",
+    /** The style math object *Small*, which scales content by 67%. */
+    small = "small",
+    /** The style math object *Big*, which scales content by 133%. */
+    big = "big",
+    /** The style math object *Brown*, which decorates content with colour #3e2723. */
+    brown = "brown",
+    /** The style math object *Orange*, which decorates content with colour #e65100. */
+    orange = "orange",
+    /** The style math object *Yellow*, which decorates content with colour #ffd600. */
+    yellow = "yellow",
+    /** The style math object *Lime*, which decorates content with colour #827717. */
+    lime = "lime",
+    /** The style math object *Green*, which decorates content with colour #33691e. */
+    green = "green",
+    /** The style math object *Teal*, which decorates content with colour #006064. */
+    teal = "teal",
+    /** The style math object *Blue*, which decorates content with colour #01579b. */
+    blue = "blue",
+    /** The style math object *Indigo*, which decorates content with colour #1a237e. */
+    indigo = "indigo",
+    /** The style math object *Purple*, which decorates content with colour #4a148c. */
+    purple = "purple",
+    /** The style math object *Red*, which decorates content with colour #b71c1c. */
+    red = "red",
+    /** The style math object *Pink*, which decorates content with colour #e91e63. */
+    pink = "pink",
+    /** The style math object *Black*, which decorates content with colour #000000. */
+    black = "black",
+    /** The style math object *Dark grey*, which decorates content with colour #616161. */
+    darkGrey = "darkGrey",
+    /** The style math object *Grey*, which decorates content with colour #9e9e9e. */
+    grey = "grey",
+    /** The style math object *Light grey*, which decorates content with colour #e0e0e0. */
+    lightGrey = "lightGrey",
+    /** The style math object *White*, which decorates content with colour #ffffff. */
+    white = "white",
+    /** The hidden math object *Slash divides*, which inserts the / operator. */
+    slashDivides = "slashDivides",
+    /** The hidden math object *Text annotation*. */
+    textAnnotation = "textAnnotation",
+    /** The hidden math object *Zero vector*. */
+    zeroVector = "zeroVector",
+    /** The hidden math object *Planck constant*. */
+    PlanckConstant = "PlanckConstant",
+    /** The hidden math object *Reduced Planck constant*. */
+    reduced_PlanckConstant = "reduced_PlanckConstant",
+  }
+  /**
+   * The names of the subset of math editor commands that insert chemistry objects without any additional special behaviours.
+   *
+   * @see [[EditorCommand]]
+   */
+  const enum ChemistryObject {
+    /** The chemistry math object *Yields*, which inserts the → operator. */
+    yields = "yields",
+    /** The chemistry math object *Does not yield*, which inserts the ↛ operator. */
+    doesNotYield = "doesNotYield",
+    /** The chemistry math object *Equilibrium*, which inserts the ⇌ operator. */
+    equilibrium = "equilibrium",
+    /** The chemistry math object *Yields both directions*, which inserts the ⇄ operator. */
+    yieldsBothDirections = "yieldsBothDirections",
+    /** The chemistry math object *Yields net backward*, which inserts the ← operator. */
+    yieldsNetBackward = "yieldsNetBackward",
+    /** The chemistry math object *Yields with heat*, which inserts the → operator with △ above. */
+    yieldsWithHeat = "yieldsWithHeat",
+    /** The chemistry math object *Yields with light*, which inserts the → operator with hν above. */
+    yieldsWithLight = "yieldsWithLight",
+    /** The chemistry math object *Yields with catalyst*. */
+    yieldsWithCatalyst = "yieldsWithCatalyst",
+    /** The chemistry math object *Caged atom*, which inserts the @ operator. */
+    cagedAtom = "cagedAtom",
+    /** The chemistry math object *Solid state*. */
+    solidState = "solidState",
+    /** The chemistry math object *Liquid state*. */
+    liquidState = "liquidState",
+    /** The chemistry math object *Gaseous state*. */
+    gaseousState = "gaseousState",
+    /** The chemistry math object *Aqueous state*. */
+    aqueousState = "aqueousState",
+    /** The chemistry math object *Crystalline state*. */
+    crystallineState = "crystallineState",
+    /** The chemistry math object *Precipitate produced*. */
+    precipitateProduced = "precipitateProduced",
+    /** The chemistry math object *Gas produced*. */
+    gasProduced = "gasProduced",
+    /** The chemistry math object *Electron*. */
+    electron = "electron",
+    /** The chemistry math object *Positron*. */
+    positron = "positron",
+    /** The chemistry math object *Proton*. */
+    proton = "proton",
+    /** The chemistry math object *Antiproton*. */
+    antiproton = "antiproton",
+    /** The chemistry math object *Neutron*. */
+    neutron = "neutron",
+    /** The chemistry math object *Antineutron*. */
+    antineutron = "antineutron",
+    /** The chemistry math object *Neutrino*. */
+    neutrino = "neutrino",
+    /** The chemistry math object *Antineutrino*. */
+    antineutrino = "antineutrino",
+    /** The chemistry math object *Muon*. */
+    muon = "muon",
+    /** The chemistry math object *Antimuon*. */
+    antimuon = "antimuon",
+    /** The chemistry math object *Muon neutrino*. */
+    muonNeutrino = "muonNeutrino",
+    /** The chemistry math object *Muon antineutrino*. */
+    muonAntineutrino = "muonAntineutrino",
+    /** The chemistry math object *Tauon*. */
+    tauon = "tauon",
+    /** The chemistry math object *Antitauon*. */
+    antitauon = "antitauon",
+    /** The chemistry math object *Tau neutrino*. */
+    tauNeutrino = "tauNeutrino",
+    /** The chemistry math object *Tau antineutrino*. */
+    tauAntineutrino = "tauAntineutrino",
+    /** The chemistry math object *Deuterium*. */
+    deuterium = "deuterium",
+    /** The chemistry math object *Tritium*. */
+    tritium = "tritium",
+    /** The chemistry math object *Thoron*. */
+    thoron = "thoron",
+    /** The chemistry math object *Hydrogen*, which inserts **H**, the symbol for the element with atomic number 1. */
+    hydrogen = "hydrogen",
+    /** The chemistry math object *Helium*, which inserts **He**, the symbol for the element with atomic number 2. */
+    helium = "helium",
+    /** The chemistry math object *Lithium*, which inserts **Li**, the symbol for the element with atomic number 3. */
+    lithium = "lithium",
+    /** The chemistry math object *Beryllium*, which inserts **Be**, the symbol for the element with atomic number 4. */
+    beryllium = "beryllium",
+    /** The chemistry math object *Boron*, which inserts **B**, the symbol for the element with atomic number 5. */
+    boron = "boron",
+    /** The chemistry math object *Carbon*, which inserts **C**, the symbol for the element with atomic number 6. */
+    carbon = "carbon",
+    /** The chemistry math object *Nitrogen*, which inserts **N**, the symbol for the element with atomic number 7. */
+    nitrogen = "nitrogen",
+    /** The chemistry math object *Oxygen*, which inserts **O**, the symbol for the element with atomic number 8. */
+    oxygen = "oxygen",
+    /** The chemistry math object *Fluorine*, which inserts **F**, the symbol for the element with atomic number 9. */
+    fluorine = "fluorine",
+    /** The chemistry math object *Neon*, which inserts **Ne**, the symbol for the element with atomic number 10. */
+    neon = "neon",
+    /** The chemistry math object *Sodium*, which inserts **Na**, the symbol for the element with atomic number 11. */
+    sodium = "sodium",
+    /** The chemistry math object *Magnesium*, which inserts **Mg**, the symbol for the element with atomic number 12. */
+    magnesium = "magnesium",
+    /** The chemistry math object *Aluminium*, which inserts **Al**, the symbol for the element with atomic number 13. */
+    aluminium = "aluminium",
+    /** The chemistry math object *Silicon*, which inserts **Si**, the symbol for the element with atomic number 14. */
+    silicon = "silicon",
+    /** The chemistry math object *Phosphorus*, which inserts **P**, the symbol for the element with atomic number 15. */
+    phosphorus = "phosphorus",
+    /** The chemistry math object *Sulfur*, which inserts **S**, the symbol for the element with atomic number 16. */
+    sulfur = "sulfur",
+    /** The chemistry math object *Chlorine*, which inserts **Cl**, the symbol for the element with atomic number 17. */
+    chlorine = "chlorine",
+    /** The chemistry math object *Argon*, which inserts **Ar**, the symbol for the element with atomic number 18. */
+    argon = "argon",
+    /** The chemistry math object *Potassium*, which inserts **K**, the symbol for the element with atomic number 19. */
+    potassium = "potassium",
+    /** The chemistry math object *Calcium*, which inserts **Ca**, the symbol for the element with atomic number 20. */
+    calcium = "calcium",
+    /** The chemistry math object *Scandium*, which inserts **Sc**, the symbol for the element with atomic number 21. */
+    scandium = "scandium",
+    /** The chemistry math object *Titanium*, which inserts **Ti**, the symbol for the element with atomic number 22. */
+    titanium = "titanium",
+    /** The chemistry math object *Vanadium*, which inserts **V**, the symbol for the element with atomic number 23. */
+    vanadium = "vanadium",
+    /** The chemistry math object *Chromium*, which inserts **Cr**, the symbol for the element with atomic number 24. */
+    chromium = "chromium",
+    /** The chemistry math object *Manganese*, which inserts **Mn**, the symbol for the element with atomic number 25. */
+    manganese = "manganese",
+    /** The chemistry math object *Iron*, which inserts **Fe**, the symbol for the element with atomic number 26. */
+    iron = "iron",
+    /** The chemistry math object *Cobalt*, which inserts **Co**, the symbol for the element with atomic number 27. */
+    cobalt = "cobalt",
+    /** The chemistry math object *Nickel*, which inserts **Ni**, the symbol for the element with atomic number 28. */
+    nickel = "nickel",
+    /** The chemistry math object *Copper*, which inserts **Cu**, the symbol for the element with atomic number 29. */
+    copper = "copper",
+    /** The chemistry math object *Zinc*, which inserts **Zn**, the symbol for the element with atomic number 30. */
+    zinc = "zinc",
+    /** The chemistry math object *Gallium*, which inserts **Ga**, the symbol for the element with atomic number 31. */
+    gallium = "gallium",
+    /** The chemistry math object *Germanium*, which inserts **Ge**, the symbol for the element with atomic number 32. */
+    germanium = "germanium",
+    /** The chemistry math object *Arsenic*, which inserts **As**, the symbol for the element with atomic number 33. */
+    arsenic = "arsenic",
+    /** The chemistry math object *Selenium*, which inserts **Se**, the symbol for the element with atomic number 34. */
+    selenium = "selenium",
+    /** The chemistry math object *Bromine*, which inserts **Br**, the symbol for the element with atomic number 35. */
+    bromine = "bromine",
+    /** The chemistry math object *Krypton*, which inserts **Kr**, the symbol for the element with atomic number 36. */
+    krypton = "krypton",
+    /** The chemistry math object *Rubidium*, which inserts **Rb**, the symbol for the element with atomic number 37. */
+    rubidium = "rubidium",
+    /** The chemistry math object *Strontium*, which inserts **Sr**, the symbol for the element with atomic number 38. */
+    strontium = "strontium",
+    /** The chemistry math object *Yttrium*, which inserts **Y**, the symbol for the element with atomic number 39. */
+    yttrium = "yttrium",
+    /** The chemistry math object *Zirconium*, which inserts **Zr**, the symbol for the element with atomic number 40. */
+    zirconium = "zirconium",
+    /** The chemistry math object *Niobium*, which inserts **Nb**, the symbol for the element with atomic number 41. */
+    niobium = "niobium",
+    /** The chemistry math object *Molybdenum*, which inserts **Mo**, the symbol for the element with atomic number 42. */
+    molybdenum = "molybdenum",
+    /** The chemistry math object *Technetium*, which inserts **Tc**, the symbol for the element with atomic number 43. */
+    technetium = "technetium",
+    /** The chemistry math object *Ruthenium*, which inserts **Ru**, the symbol for the element with atomic number 44. */
+    ruthenium = "ruthenium",
+    /** The chemistry math object *Rhodium*, which inserts **Rh**, the symbol for the element with atomic number 45. */
+    rhodium = "rhodium",
+    /** The chemistry math object *Palladium*, which inserts **Pd**, the symbol for the element with atomic number 46. */
+    palladium = "palladium",
+    /** The chemistry math object *Silver*, which inserts **Ag**, the symbol for the element with atomic number 47. */
+    silver = "silver",
+    /** The chemistry math object *Cadmium*, which inserts **Cd**, the symbol for the element with atomic number 48. */
+    cadmium = "cadmium",
+    /** The chemistry math object *Indium*, which inserts **In**, the symbol for the element with atomic number 49. */
+    indium = "indium",
+    /** The chemistry math object *Tin*, which inserts **Sn**, the symbol for the element with atomic number 50. */
+    tin = "tin",
+    /** The chemistry math object *Antimony*, which inserts **Sb**, the symbol for the element with atomic number 51. */
+    antimony = "antimony",
+    /** The chemistry math object *Tellurium*, which inserts **Te**, the symbol for the element with atomic number 52. */
+    tellurium = "tellurium",
+    /** The chemistry math object *Iodine*, which inserts **I**, the symbol for the element with atomic number 53. */
+    iodine = "iodine",
+    /** The chemistry math object *Xenon*, which inserts **Xe**, the symbol for the element with atomic number 54. */
+    xenon = "xenon",
+    /** The chemistry math object *Cesium*, which inserts **Cs**, the symbol for the element with atomic number 55. */
+    cesium = "cesium",
+    /** The chemistry math object *Barium*, which inserts **Ba**, the symbol for the element with atomic number 56. */
+    barium = "barium",
+    /** The chemistry math object *Lanthanum*, which inserts **La**, the symbol for the element with atomic number 57. */
+    lanthanum = "lanthanum",
+    /** The chemistry math object *Cerium*, which inserts **Ce**, the symbol for the element with atomic number 58. */
+    cerium = "cerium",
+    /** The chemistry math object *Praseodymium*, which inserts **Pr**, the symbol for the element with atomic number 59. */
+    praseodymium = "praseodymium",
+    /** The chemistry math object *Neodymium*, which inserts **Nd**, the symbol for the element with atomic number 60. */
+    neodymium = "neodymium",
+    /** The chemistry math object *Promethium*, which inserts **Pm**, the symbol for the element with atomic number 61. */
+    promethium = "promethium",
+    /** The chemistry math object *Samarium*, which inserts **Sm**, the symbol for the element with atomic number 62. */
+    samarium = "samarium",
+    /** The chemistry math object *Europium*, which inserts **Eu**, the symbol for the element with atomic number 63. */
+    europium = "europium",
+    /** The chemistry math object *Gadolinium*, which inserts **Gd**, the symbol for the element with atomic number 64. */
+    gadolinium = "gadolinium",
+    /** The chemistry math object *Terbium*, which inserts **Tb**, the symbol for the element with atomic number 65. */
+    terbium = "terbium",
+    /** The chemistry math object *Dysprosium*, which inserts **Dy**, the symbol for the element with atomic number 66. */
+    dysprosium = "dysprosium",
+    /** The chemistry math object *Holmium*, which inserts **Ho**, the symbol for the element with atomic number 67. */
+    holmium = "holmium",
+    /** The chemistry math object *Erbium*, which inserts **Er**, the symbol for the element with atomic number 68. */
+    erbium = "erbium",
+    /** The chemistry math object *Thulium*, which inserts **Tm**, the symbol for the element with atomic number 69. */
+    thulium = "thulium",
+    /** The chemistry math object *Ytterbium*, which inserts **Yb**, the symbol for the element with atomic number 70. */
+    ytterbium = "ytterbium",
+    /** The chemistry math object *Lutetium*, which inserts **Lu**, the symbol for the element with atomic number 71. */
+    lutetium = "lutetium",
+    /** The chemistry math object *Hafnium*, which inserts **Hf**, the symbol for the element with atomic number 72. */
+    hafnium = "hafnium",
+    /** The chemistry math object *Tantalum*, which inserts **Ta**, the symbol for the element with atomic number 73. */
+    tantalum = "tantalum",
+    /** The chemistry math object *Tungsten*, which inserts **W**, the symbol for the element with atomic number 74. */
+    tungsten = "tungsten",
+    /** The chemistry math object *Rhenium*, which inserts **Re**, the symbol for the element with atomic number 75. */
+    rhenium = "rhenium",
+    /** The chemistry math object *Osmium*, which inserts **Os**, the symbol for the element with atomic number 76. */
+    osmium = "osmium",
+    /** The chemistry math object *Iridium*, which inserts **Ir**, the symbol for the element with atomic number 77. */
+    iridium = "iridium",
+    /** The chemistry math object *Platinum*, which inserts **Pt**, the symbol for the element with atomic number 78. */
+    platinum = "platinum",
+    /** The chemistry math object *Gold*, which inserts **Au**, the symbol for the element with atomic number 79. */
+    gold = "gold",
+    /** The chemistry math object *Mercury*, which inserts **Hg**, the symbol for the element with atomic number 80. */
+    mercury = "mercury",
+    /** The chemistry math object *Thallium*, which inserts **Tl**, the symbol for the element with atomic number 81. */
+    thallium = "thallium",
+    /** The chemistry math object *Lead*, which inserts **Pb**, the symbol for the element with atomic number 82. */
+    lead = "lead",
+    /** The chemistry math object *Bismuth*, which inserts **Bi**, the symbol for the element with atomic number 83. */
+    bismuth = "bismuth",
+    /** The chemistry math object *Polonium*, which inserts **Po**, the symbol for the element with atomic number 84. */
+    polonium = "polonium",
+    /** The chemistry math object *Astatine*, which inserts **At**, the symbol for the element with atomic number 85. */
+    astatine = "astatine",
+    /** The chemistry math object *Radon*, which inserts **Rn**, the symbol for the element with atomic number 86. */
+    radon = "radon",
+    /** The chemistry math object *Francium*, which inserts **Fr**, the symbol for the element with atomic number 87. */
+    francium = "francium",
+    /** The chemistry math object *Radium*, which inserts **Ra**, the symbol for the element with atomic number 88. */
+    radium = "radium",
+    /** The chemistry math object *Actinium*, which inserts **Ac**, the symbol for the element with atomic number 89. */
+    actinium = "actinium",
+    /** The chemistry math object *Thorium*, which inserts **Th**, the symbol for the element with atomic number 90. */
+    thorium = "thorium",
+    /** The chemistry math object *Protactinium*, which inserts **Pa**, the symbol for the element with atomic number 91. */
+    protactinium = "protactinium",
+    /** The chemistry math object *Uranium*, which inserts **U**, the symbol for the element with atomic number 92. */
+    uranium = "uranium",
+    /** The chemistry math object *Neptunium*, which inserts **Np**, the symbol for the element with atomic number 93. */
+    neptunium = "neptunium",
+    /** The chemistry math object *Plutonium*, which inserts **Pu**, the symbol for the element with atomic number 94. */
+    plutonium = "plutonium",
+    /** The chemistry math object *Americium*, which inserts **Am**, the symbol for the element with atomic number 95. */
+    americium = "americium",
+    /** The chemistry math object *Curium*, which inserts **Cm**, the symbol for the element with atomic number 96. */
+    curium = "curium",
+    /** The chemistry math object *Berkelium*, which inserts **Bk**, the symbol for the element with atomic number 97. */
+    berkelium = "berkelium",
+    /** The chemistry math object *Californium*, which inserts **Cf**, the symbol for the element with atomic number 98. */
+    californium = "californium",
+    /** The chemistry math object *Einsteinium*, which inserts **Es**, the symbol for the element with atomic number 99. */
+    einsteinium = "einsteinium",
+    /** The chemistry math object *Fermium*, which inserts **Fm**, the symbol for the element with atomic number 100. */
+    fermium = "fermium",
+    /** The chemistry math object *Mendelevium*, which inserts **Md**, the symbol for the element with atomic number 101. */
+    mendelevium = "mendelevium",
+    /** The chemistry math object *Nobelium*, which inserts **No**, the symbol for the element with atomic number 102. */
+    nobelium = "nobelium",
+    /** The chemistry math object *Lawrencium*, which inserts **Lr**, the symbol for the element with atomic number 103. */
+    lawrencium = "lawrencium",
+    /** The chemistry math object *Rutherfordium*, which inserts **Rf**, the symbol for the element with atomic number 104. */
+    rutherfordium = "rutherfordium",
+    /** The chemistry math object *Dubnium*, which inserts **Db**, the symbol for the element with atomic number 105. */
+    dubnium = "dubnium",
+    /** The chemistry math object *Seaborgium*, which inserts **Sg**, the symbol for the element with atomic number 106. */
+    seaborgium = "seaborgium",
+    /** The chemistry math object *Bohrium*, which inserts **Bh**, the symbol for the element with atomic number 107. */
+    bohrium = "bohrium",
+    /** The chemistry math object *Hassium*, which inserts **Hs**, the symbol for the element with atomic number 108. */
+    hassium = "hassium",
+    /** The chemistry math object *Meitnerium*, which inserts **Mt**, the symbol for the element with atomic number 109. */
+    meitnerium = "meitnerium",
+    /** The chemistry math object *Darmstadtium*, which inserts **Ds**, the symbol for the element with atomic number 110. */
+    darmstadtium = "darmstadtium",
+    /** The chemistry math object *Roentgenium*, which inserts **Rg**, the symbol for the element with atomic number 111. */
+    roentgenium = "roentgenium",
+    /** The chemistry math object *Copernicium*, which inserts **Cn**, the symbol for the element with atomic number 112. */
+    copernicium = "copernicium",
+    /** The chemistry math object *Nihonium*, which inserts **Nh**, the symbol for the element with atomic number 113. */
+    nihonium = "nihonium",
+    /** The chemistry math object *Flerovium*, which inserts **Fl**, the symbol for the element with atomic number 114. */
+    flerovium = "flerovium",
+    /** The chemistry math object *Moscovium*, which inserts **Mc**, the symbol for the element with atomic number 115. */
+    moscovium = "moscovium",
+    /** The chemistry math object *Livermorium*, which inserts **Lv**, the symbol for the element with atomic number 116. */
+    livermorium = "livermorium",
+    /** The chemistry math object *Tennessine*, which inserts **Ts**, the symbol for the element with atomic number 117. */
+    tennessine = "tennessine",
+    /** The chemistry math object *Oganesson*, which inserts **Og**, the symbol for the element with atomic number 118. */
+    oganesson = "oganesson",
+    /** The chemistry math object *Ununennium*, which inserts **Uue**, the symbol for the element with atomic number 119. */
+    ununennium = "ununennium",
+  }
+  /**
+   * The names of *all* built-in editor commands. This is a superset of [[MathObject]] and [[ChemistryObject]] which also includes general editing commands.
+   */
+  const enum EditorCommand {
+    /** The movement editor command *Move up*. */
+    moveUp = "moveUp",
+    /** The movement editor command *Move down*. */
+    moveDown = "moveDown",
+    /** The movement editor command *Move left*. */
+    moveLeft = "moveLeft",
+    /** The movement editor command *Move right*. */
+    moveRight = "moveRight",
+    /** The movement editor command *Move left fast*. */
+    moveLeftFast = "moveLeftFast",
+    /** The movement editor command *Move right fast*. */
+    moveRightFast = "moveRightFast",
+    /** The movement editor command *Move to field start*. */
+    moveToFieldStart = "moveToFieldStart",
+    /** The movement editor command *Move to field end*. */
+    moveToFieldEnd = "moveToFieldEnd",
+    /** The movement editor command *Move to line start*. */
+    moveToLineStart = "moveToLineStart",
+    /** The movement editor command *Move to line end*. */
+    moveToLineEnd = "moveToLineEnd",
+    /** The movement editor command *Move to document start*. */
+    moveToDocumentStart = "moveToDocumentStart",
+    /** The movement editor command *Move to document end*. */
+    moveToDocumentEnd = "moveToDocumentEnd",
+    /** The movement editor command *Forward enter*. */
+    forwardEnter = "forwardEnter",
+    /** The movement editor command *Backward enter*. */
+    backwardEnter = "backwardEnter",
+    /** The movement editor command *Move line up*. */
+    moveLineUp = "moveLineUp",
+    /** The movement editor command *Move line down*. */
+    moveLineDown = "moveLineDown",
+    /** The movement editor command *Move left in field*. */
+    moveLeftInField = "moveLeftInField",
+    /** The movement editor command *Move right in field*. */
+    moveRightInField = "moveRightInField",
+    /** The movement editor command *Leave parentheses*. */
+    leaveParentheses = "leaveParentheses",
+    /** The movement editor command *Leave brackets*. */
+    leaveBrackets = "leaveBrackets",
+    /** The movement editor command *Leave braces*. */
+    leaveBraces = "leaveBraces",
+    /** The selection editor command *Select left*. */
+    selectLeft = "selectLeft",
+    /** The selection editor command *Select right*. */
+    selectRight = "selectRight",
+    /** The selection editor command *Select left fast*. */
+    selectLeftFast = "selectLeftFast",
+    /** The selection editor command *Select right fast*. */
+    selectRightFast = "selectRightFast",
+    /** The selection editor command *Select to field start*. */
+    selectToFieldStart = "selectToFieldStart",
+    /** The selection editor command *Select to field end*. */
+    selectToFieldEnd = "selectToFieldEnd",
+    /** The selection editor command *Select more*. */
+    selectMore = "selectMore",
+    /** The selection editor command *Select less*. */
+    selectLess = "selectLess",
+    /** The selection editor command *Select line*. */
+    selectLine = "selectLine",
+    /** The selection editor command *Select number*. */
+    selectNumber = "selectNumber",
+    /** The editing editor command *Expand abbreviation*. */
+    expandAbbreviation = "expandAbbreviation",
+    /** The editing editor command *Show abbreviation completions*. */
+    showAbbreviationCompletions = "showAbbreviationCompletions",
+    /** The editing editor command *Duplicate line*. */
+    duplicateLine = "duplicateLine",
+    /** The editing editor command *Unwrap*. */
+    unwrap = "unwrap",
+    /** The editing editor command *Unwrap and select*. */
+    unwrapAndSelect = "unwrapAndSelect",
+    /** The editing editor command *Take reciprocal*. */
+    takeReciprocal = "takeReciprocal",
+    /** The editing editor command *Pull in from left*. */
+    pullInFromLeft = "pullInFromLeft",
+    /** The editing editor command *Pull in from right*. */
+    pullInFromRight = "pullInFromRight",
+    /** The editing editor command *Push out to left*. */
+    pushOutToLeft = "pushOutToLeft",
+    /** The editing editor command *Push out to right*. */
+    pushOutToRight = "pushOutToRight",
+    /** The editing editor command *Forward delete*. */
+    forwardDelete = "forwardDelete",
+    /** The editing editor command *Line joining forward delete*. */
+    lineJoiningForwardDelete = "lineJoiningForwardDelete",
+    /** The editing editor command *Backward delete*. */
+    backwardDelete = "backwardDelete",
+    /** The editing editor command *Line joining backward delete*. */
+    lineJoiningBackwardDelete = "lineJoiningBackwardDelete",
+    /** The editing editor command *Join lines*. */
+    joinLines = "joinLines",
+    /** The editing editor command *Split line*. */
+    splitLine = "splitLine",
+    /** The editing editor command *Split text*. */
+    splitText = "splitText",
+    /** The editing editor command *Undo*. */
+    undo = "undo",
+    /** The editing editor command *Redo*. */
+    redo = "redo",
+    /** The editing editor command *Cut*. */
+    cut = "cut",
+    /** The editing editor command *Copy*. */
+    copy = "copy",
+    /** The editing editor command *Paste*. */
+    paste = "paste",
+    /** The variable math object *Identifier*. */
+    identifier = "identifier",
+    /** The variable editor command *Change type to scalar*, which changes the data type of the variable or identifier under the caret. */
+    changeTypeToScalar = "changeTypeToScalar",
+    /** The variable editor command *Change type to set*, which changes the data type of the variable or identifier under the caret. */
+    changeTypeToSet = "changeTypeToSet",
+    /** The variable editor command *Change type to point*, which changes the data type of the variable or identifier under the caret. */
+    changeTypeToPoint = "changeTypeToPoint",
+    /** The variable editor command *Change type to vector*, which changes the data type of the variable or identifier under the caret. */
+    changeTypeToVector = "changeTypeToVector",
+    /** The variable editor command *Change type to tensor*, which changes the data type of the variable or identifier under the caret. */
+    changeTypeToTensor = "changeTypeToTensor",
+    /** The variable editor command *Change type to matrix*, which changes the data type of the variable or identifier under the caret. */
+    changeTypeToMatrix = "changeTypeToMatrix",
+    /** The variable editor command *Change type to string*, which changes the data type of the variable or identifier under the caret. */
+    changeTypeToString = "changeTypeToString",
+    /** The variable editor command *Remove accent*. */
+    removeAccent = "removeAccent",
+    /** The variable editor command *Change accent to acute*, which changes the accent of the variable under the caret to *x́*. */
+    changeAccentToAcute = "changeAccentToAcute",
+    /** The variable editor command *Change accent to bar*, which changes the accent of the variable under the caret to *x̄*. */
+    changeAccentToBar = "changeAccentToBar",
+    /** The variable editor command *Change accent to breve*, which changes the accent of the variable under the caret to *x̆*. */
+    changeAccentToBreve = "changeAccentToBreve",
+    /** The variable editor command *Change accent to check*, which changes the accent of the variable under the caret to *x̌*. */
+    changeAccentToCheck = "changeAccentToCheck",
+    /** The variable editor command *Change accent to dot*, which changes the accent of the variable under the caret to *ẋ*. */
+    changeAccentToDot = "changeAccentToDot",
+    /** The variable editor command *Change accent to dots*, which changes the accent of the variable under the caret to *ẍ*. */
+    changeAccentToDots = "changeAccentToDots",
+    /** The variable editor command *Change accent to grave*, which changes the accent of the variable under the caret to *x̀*. */
+    changeAccentToGrave = "changeAccentToGrave",
+    /** The variable editor command *Change accent to hat*, which changes the accent of the variable under the caret to *x̂*. */
+    changeAccentToHat = "changeAccentToHat",
+    /** The variable editor command *Change accent to tilde*, which changes the accent of the variable under the caret to *x̃*. */
+    changeAccentToTilde = "changeAccentToTilde",
+    /** The arithmetic math object *Plus*, which inserts the + operator. */
+    plus = "plus",
+    /** The arithmetic math object *Minus*, which inserts the − operator. */
+    minus = "minus",
+    /** The arithmetic math object *Times dot*, which inserts the ⋅ operator. */
+    timesDot = "timesDot",
+    /** The arithmetic math object *Times cross*, which inserts the ⨯ operator. */
+    timesCross = "timesCross",
+    /** The arithmetic math object *Divided by*, which inserts the ÷ operator. */
+    dividedBy = "dividedBy",
+    /** The arithmetic math object *Fraction*. */
+    fraction = "fraction",
+    /** The arithmetic editor command *Natural fraction*. */
+    naturalFraction = "naturalFraction",
+    /** The arithmetic math object *To the power*. */
+    toThePower = "toThePower",
+    /** The arithmetic math object *Subscript index*. */
+    subscriptIndex = "subscriptIndex",
+    /** The arithmetic math object *Plus or minus*, which inserts the ± operator. */
+    plusOrMinus = "plusOrMinus",
+    /** The arithmetic math object *Minus or plus*, which inserts the ∓ operator. */
+    minusOrPlus = "minusOrPlus",
+    /** The arithmetic math object *Square root*. */
+    squareRoot = "squareRoot",
+    /** The arithmetic math object *Cube root*. */
+    cubeRoot = "cubeRoot",
+    /** The arithmetic math object *Root*. */
+    root = "root",
+    /** The arithmetic math object *Percent*, which inserts the % operator. */
+    percent = "percent",
+    /** The arithmetic math object *Ratio*, which inserts the : operator. */
+    ratio = "ratio",
+    /** The arithmetic math object *Divides*, which inserts the ∣ operator. */
+    divides = "divides",
+    /** The arithmetic math object *Does not divide*, which inserts the ∤ operator. */
+    doesNotDivide = "doesNotDivide",
+    /** The arithmetic math object *Remainder after division*, which inserts the mod operator. */
+    remainderAfterDivision = "remainderAfterDivision",
+    /** The arithmetic math object *Congruent modulo*. */
+    congruentModulo = "congruentModulo",
+    /** The arithmetic math object *Not congruent modulo*. */
+    notCongruentModulo = "notCongruentModulo",
+    /** The relation math object *Equal to*, which inserts the = operator. */
+    equalTo = "equalTo",
+    /** The relation math object *Not equal to*, which inserts the ≠ operator. */
+    notEqualTo = "notEqualTo",
+    /** The relation math object *Approximately equal to*, which inserts the ≈ operator. */
+    approximatelyEqualTo = "approximatelyEqualTo",
+    /** The relation math object *Defined to be equal to*, which inserts the ≝ operator. */
+    definedToBeEqualTo = "definedToBeEqualTo",
+    /** The relation math object *Questioned equal to*, which inserts the ≟ operator. */
+    questionedEqualTo = "questionedEqualTo",
+    /** The relation math object *Identical to*, which inserts the ≡ operator. */
+    identicalTo = "identicalTo",
+    /** The relation math object *Not identical to*, which inserts the ≢ operator. */
+    notIdenticalTo = "notIdenticalTo",
+    /** The relation math object *Proportional to*, which inserts the ∝ operator. */
+    proportionalTo = "proportionalTo",
+    /** The relation math object *Corresponds to*, which inserts the ≙ operator. */
+    correspondsTo = "correspondsTo",
+    /** The relation math object *Less than*, which inserts the < operator. */
+    lessThan = "lessThan",
+    /** The relation math object *Greater than*, which inserts the > operator. */
+    greaterThan = "greaterThan",
+    /** The relation math object *Less than or equal to*, which inserts the ≤ operator. */
+    lessThanOrEqualTo = "lessThanOrEqualTo",
+    /** The relation math object *Greater than or equal to*, which inserts the ≥ operator. */
+    greaterThanOrEqualTo = "greaterThanOrEqualTo",
+    /** The relation math object *Not less than*, which inserts the ≮ operator. */
+    notLessThan = "notLessThan",
+    /** The relation math object *Not greater than*, which inserts the ≯ operator. */
+    notGreaterThan = "notGreaterThan",
+    /** The relation math object *Not less than or equal to*, which inserts the ≰ operator. */
+    notLessThanOrEqualTo = "notLessThanOrEqualTo",
+    /** The relation math object *Not greater than or equal to*, which inserts the ≱ operator. */
+    notGreaterThanOrEqualTo = "notGreaterThanOrEqualTo",
+    /** The relation math object *Much less than*, which inserts the ≪ operator. */
+    muchLessThan = "muchLessThan",
+    /** The relation math object *Much greater than*, which inserts the ≫ operator. */
+    muchGreaterThan = "muchGreaterThan",
+    /** The relation math object *Less than or approximately*, which inserts the ⪅ operator. */
+    lessThanOrApproximately = "lessThanOrApproximately",
+    /** The relation math object *Greater than or approximately*, which inserts the ⪆ operator. */
+    greaterThanOrApproximately = "greaterThanOrApproximately",
+    /** The relation math object *Precedes*, which inserts the ≺ operator. */
+    precedes = "precedes",
+    /** The relation math object *Succeeds*, which inserts the ≻ operator. */
+    succeeds = "succeeds",
+    /** The relation math object *Precedes or equal to*, which inserts the ≼ operator. */
+    precedesOrEqualTo = "precedesOrEqualTo",
+    /** The relation math object *Succeeds or equal to*, which inserts the ≽ operator. */
+    succeedsOrEqualTo = "succeedsOrEqualTo",
+    /** The relation math object *Does not precede*, which inserts the ⊀ operator. */
+    doesNotPrecede = "doesNotPrecede",
+    /** The relation math object *Does not succeed*, which inserts the ⊁ operator. */
+    doesNotSucceed = "doesNotSucceed",
+    /** The relation math object *Does not precede or equal*, which inserts the ⋠ operator. */
+    doesNotPrecedeOrEqual = "doesNotPrecedeOrEqual",
+    /** The relation math object *Does not succeed or equal*, which inserts the ⋡ operator. */
+    doesNotSucceedOrEqual = "doesNotSucceedOrEqual",
+    /** The bracket math object *Parentheses*, which inserts (…) brackets. */
+    parentheses = "parentheses",
+    /** The bracket math object *Brackets*, which inserts […] brackets. */
+    brackets = "brackets",
+    /** The bracket math object *Angle brackets*, which inserts ⟨…⟩ brackets. */
+    angleBrackets = "angleBrackets",
+    /** The bracket math object *Absolute value*, which inserts |…| brackets. */
+    absoluteValue = "absoluteValue",
+    /** The bracket math object *Floor*, which inserts ⌊…⌋ brackets. */
+    floor = "floor",
+    /** The bracket math object *Ceiling*, which inserts ⌈…⌉ brackets. */
+    ceiling = "ceiling",
+    /** The unit math object *Unit*. */
+    unit = "unit",
+    /** The unit math object *Degrees*. */
+    degrees = "degrees",
+    /** The unit math object *Arcminutes*. */
+    arcminutes = "arcminutes",
+    /** The unit math object *Arcseconds*. */
+    arcseconds = "arcseconds",
+    /** The unit math object *Degrees celsius*. */
+    degreesCelsius = "degreesCelsius",
+    /** The unit math object *Degrees fahrenheit*. */
+    degreesFahrenheit = "degreesFahrenheit",
+    /** The unit math object *Dollars*. */
+    dollars = "dollars",
+    /** The unit math object *Pounds sterling*. */
+    poundsSterling = "poundsSterling",
+    /** The unit math object *Euros*. */
+    euros = "euros",
+    /** The logic math object *Boolean true*. */
+    booleanTrue = "booleanTrue",
+    /** The logic math object *Boolean false*. */
+    booleanFalse = "booleanFalse",
+    /** The logic math object *Tautology*, which inserts the ⊤ operator. */
+    tautology = "tautology",
+    /** The logic math object *Contradiction*, which inserts the ⊥ operator. */
+    contradiction = "contradiction",
+    /** The logic math object *Conjunction*, which inserts the ∧ operator. */
+    conjunction = "conjunction",
+    /** The logic math object *Disjunction*, which inserts the ∨ operator. */
+    disjunction = "disjunction",
+    /** The logic math object *Exclusive disjunction*, which inserts the ⊻ operator. */
+    exclusiveDisjunction = "exclusiveDisjunction",
+    /** The logic math object *Negation*, which inserts the ¬ operator. */
+    negation = "negation",
+    /** The logic math object *Implies*, which inserts the ⇒ operator. */
+    implies = "implies",
+    /** The logic math object *Equivalent to*, which inserts the ⇔ operator. */
+    equivalentTo = "equivalentTo",
+    /** The logic math object *For all*, which inserts the ∀ operator. */
+    forAll = "forAll",
+    /** The logic math object *There exists*, which inserts the ∃ operator. */
+    thereExists = "thereExists",
+    /** The logic math object *There exists one*, which inserts the ∃¹ operator. */
+    thereExistsOne = "thereExistsOne",
+    /** The logic math object *Necessarily*, which inserts the ◻ operator. */
+    necessarily = "necessarily",
+    /** The logic math object *Possibly*, which inserts the ◊ operator. */
+    possibly = "possibly",
+    /** The logic math object *Provable*, which inserts the ⊢ operator. */
+    provable = "provable",
+    /** The logic math object *Entails*, which inserts the ⊨ operator. */
+    entails = "entails",
+    /** The logic math object *Therefore*, which inserts the ∴ operator. */
+    therefore = "therefore",
+    /** The logic math object *Because*, which inserts the ∵ operator. */
+    because = "because",
+    /** The logic math object *End of proof*, which inserts the ■ operator. */
+    endOfProof = "endOfProof",
+    /** The logic math object *n‐ary conjunction*, which inserts a big ⋀ operator. */
+    naryConjunction = "naryConjunction",
+    /** The logic math object *n‐ary disjunction*, which inserts a big ⋁ operator. */
+    naryDisjunction = "naryDisjunction",
+    /** The set math object *Set literal*, which inserts {…} brackets. */
+    setLiteral = "setLiteral",
+    /** The set math object *Set builder*. */
+    setBuilder = "setBuilder",
+    /** The set math object *Empty set*, which inserts the ∅ operator. */
+    emptySet = "emptySet",
+    /** The set math object *Power set*. */
+    powerSet = "powerSet",
+    /** The set math object *Separator*, which inserts the , operator. */
+    separator = "separator",
+    /** The set math object *Ellipsis*, which inserts the ⋯ operator. */
+    ellipsis = "ellipsis",
+    /** The set math object *Element of*, which inserts the ∈ operator. */
+    elementOf = "elementOf",
+    /** The set math object *Not an element of*, which inserts the ∉ operator. */
+    notAnElementOf = "notAnElementOf",
+    /** The set math object *Union*, which inserts the ∪ operator. */
+    union = "union",
+    /** The set math object *Intersection*, which inserts the ∩ operator. */
+    intersection = "intersection",
+    /** The set math object *Set difference*, which inserts the ∖ operator. */
+    setDifference = "setDifference",
+    /** The set math object *Symmetric difference*, which inserts the ⊖ operator. */
+    symmetricDifference = "symmetricDifference",
+    /** The set math object *Contains*, which inserts the ∋ operator. */
+    contains = "contains",
+    /** The set math object *Does not contain*, which inserts the ∌ operator. */
+    doesNotContain = "doesNotContain",
+    /** The set math object *Subset*, which inserts the ⊆ operator. */
+    subset = "subset",
+    /** The set math object *Not a subset*, which inserts the ⊈ operator. */
+    notASubset = "notASubset",
+    /** The set math object *Strict subset*, which inserts the ⊂ operator. */
+    strictSubset = "strictSubset",
+    /** The set math object *Not a strict subset*, which inserts the ⊄ operator. */
+    notAStrictSubset = "notAStrictSubset",
+    /** The set math object *Superset*, which inserts the ⊇ operator. */
+    superset = "superset",
+    /** The set math object *Not a superset*, which inserts the ⊉ operator. */
+    notASuperset = "notASuperset",
+    /** The set math object *Strict superset*, which inserts the ⊃ operator. */
+    strictSuperset = "strictSuperset",
+    /** The set math object *Not a strict superset*, which inserts the ⊅ operator. */
+    notAStrictSuperset = "notAStrictSuperset",
+    /** The set math object *Universal set*. */
+    universalSet = "universalSet",
+    /** The set math object *Natural numbers*. */
+    naturalNumbers = "naturalNumbers",
+    /** The set math object *Integer numbers*. */
+    integerNumbers = "integerNumbers",
+    /** The set math object *Rational numbers*. */
+    rationalNumbers = "rationalNumbers",
+    /** The set math object *Real numbers*. */
+    realNumbers = "realNumbers",
+    /** The set math object *Complex numbers*. */
+    complexNumbers = "complexNumbers",
+    /** The set math object *Prime numbers*. */
+    primeNumbers = "primeNumbers",
+    /** The set math object *Aleph number*. */
+    alephNumber = "alephNumber",
+    /** The set math object *Beth number*. */
+    bethNumber = "bethNumber",
+    /** The set math object *Closed interval*, which inserts an […, …] interval. */
+    closedInterval = "closedInterval",
+    /** The set math object *Left half open interval*, which inserts an (…, …] interval. */
+    leftHalfOpenInterval = "leftHalfOpenInterval",
+    /** The set math object *Right half open interval*, which inserts an […, …) interval. */
+    rightHalfOpenInterval = "rightHalfOpenInterval",
+    /** The set math object *Open interval*, which inserts an (…, …) interval. */
+    openInterval = "openInterval",
+    /** The set math object *n‐ary intersection*, which inserts a big ⋂ operator. */
+    naryIntersection = "naryIntersection",
+    /** The set math object *n‐ary union*, which inserts a big ⋃ operator. */
+    naryUnion = "naryUnion",
+    /** The geometry math object *Pi*. */
+    pi = "pi",
+    /** The geometry math object *Parallel to*, which inserts the ∥ operator. */
+    parallelTo = "parallelTo",
+    /** The geometry math object *Not parallel to*, which inserts the ∦ operator. */
+    notParallelTo = "notParallelTo",
+    /** The geometry math object *Perpendicular to*, which inserts the ⟂ operator. */
+    perpendicularTo = "perpendicularTo",
+    /** The geometry math object *Congruent to*, which inserts the ≅ operator. */
+    congruentTo = "congruentTo",
+    /** The geometry math object *Similar to*, which inserts the ∼ operator. */
+    similarTo = "similarTo",
+    /** The geometry math object *Angle*, which inserts the ∠ operator. */
+    angle = "angle",
+    /** The geometry math object *Measured angle*, which inserts the ∡ operator. */
+    measuredAngle = "measuredAngle",
+    /** The geometry math object *Spherical angle*, which inserts the ∢ operator. */
+    sphericalAngle = "sphericalAngle",
+    /** The geometry math object *Line from points*. */
+    lineFromPoints = "lineFromPoints",
+    /** The geometry math object *Line segment from points*. */
+    lineSegmentFromPoints = "lineSegmentFromPoints",
+    /** The geometry math object *Ray from points*. */
+    rayFromPoints = "rayFromPoints",
+    /** The geometry math object *Arc from points*. */
+    arcFromPoints = "arcFromPoints",
+    /** The geometry math object *Distance function*. */
+    distanceFunction = "distanceFunction",
+    /** The geometry math object *Measure function*. */
+    measureFunction = "measureFunction",
+    /** The geometry math object *Triangle*, which inserts the △ operator. */
+    triangle = "triangle",
+    /** The geometry math object *Square*, which inserts the □ operator. */
+    square = "square",
+    /** The geometry math object *Circle*, which inserts the ○ operator. */
+    circle = "circle",
+    /** The function math object *Function*. */
+    function = "function",
+    /** The function math object *Composite function*, which inserts the ∘ operator. */
+    compositeFunction = "compositeFunction",
+    /** The function math object *Inverse*. */
+    inverse = "inverse",
+    /** The function math object *Maps to*, which inserts the ↦ operator. */
+    mapsTo = "mapsTo",
+    /** The function math object *Piecewise function*. */
+    piecewiseFunction = "piecewiseFunction",
+    /** The function math object *Evaluate function*. */
+    evaluateFunction = "evaluateFunction",
+    /** The function math object *Greatest common divisor*. */
+    greatestCommonDivisor = "greatestCommonDivisor",
+    /** The function math object *Least common multiple*. */
+    leastCommonMultiple = "leastCommonMultiple",
+    /** The function math object *Minimum of*. */
+    minimumOf = "minimumOf",
+    /** The function math object *Maximum of*. */
+    maximumOf = "maximumOf",
+    /** The function math object *Integer part of*. */
+    integerPartOf = "integerPartOf",
+    /** The function math object *Fractional part of*. */
+    fractionalPartOf = "fractionalPartOf",
+    /** The function math object *Round*. */
+    round = "round",
+    /** The function math object *Signum*. */
+    signum = "signum",
+    /** The function math object *Random number*. */
+    randomNumber = "randomNumber",
+    /** The function math object *Logarithm*. */
+    logarithm = "logarithm",
+    /** The function math object *Decimal logarithm*. */
+    decimalLogarithm = "decimalLogarithm",
+    /** The function math object *Binary logarithm*. */
+    binaryLogarithm = "binaryLogarithm",
+    /** The function math object *Natural logarithm*. */
+    naturalLogarithm = "naturalLogarithm",
+    /** The function math object *Summation*, which inserts a big ∑ operator. */
+    summation = "summation",
+    /** The function math object *Product*, which inserts a big ∏ operator. */
+    product = "product",
+    /** The function math object *Coproduct*, which inserts a big ∐ operator. */
+    coproduct = "coproduct",
+    /** The combinatoric math object *Factorial*, which inserts the ! operator. */
+    factorial = "factorial",
+    /** The combinatoric math object *Rising factorial*. */
+    risingFactorial = "risingFactorial",
+    /** The combinatoric math object *Falling factorial*. */
+    fallingFactorial = "fallingFactorial",
+    /** The combinatoric math object *Binomial coefficient*. */
+    binomialCoefficient = "binomialCoefficient",
+    /** The combinatoric math object *Permutations*. */
+    permutations = "permutations",
+    /** The combinatoric math object *Permutations with repetitions*. */
+    permutationsWithRepetitions = "permutationsWithRepetitions",
+    /** The combinatoric math object *Combinations*. */
+    combinations = "combinations",
+    /** The combinatoric math object *Combinations with repetitions*. */
+    combinationsWithRepetitions = "combinationsWithRepetitions",
+    /** The combinatoric math object *Probability*. */
+    probability = "probability",
+    /** The combinatoric math object *Conditional probability*. */
+    conditionalProbability = "conditionalProbability",
+    /** The trigonometry math object *Sine*. */
+    sine = "sine",
+    /** The trigonometry math object *Cosine*. */
+    cosine = "cosine",
+    /** The trigonometry math object *Tangent*. */
+    tangent = "tangent",
+    /** The trigonometry math object *Cotangent*. */
+    cotangent = "cotangent",
+    /** The trigonometry math object *Secant*. */
+    secant = "secant",
+    /** The trigonometry math object *Cosecant*. */
+    cosecant = "cosecant",
+    /** The trigonometry math object *Arcsine*. */
+    arcsine = "arcsine",
+    /** The trigonometry math object *Arccosine*. */
+    arccosine = "arccosine",
+    /** The trigonometry math object *Arctangent*. */
+    arctangent = "arctangent",
+    /** The trigonometry math object *Arccotangent*. */
+    arccotangent = "arccotangent",
+    /** The trigonometry math object *Arcsecant*. */
+    arcsecant = "arcsecant",
+    /** The trigonometry math object *Arccosecant*. */
+    arccosecant = "arccosecant",
+    /** The trigonometry math object *Hyperbolic sine*. */
+    hyperbolicSine = "hyperbolicSine",
+    /** The trigonometry math object *Hyperbolic cosine*. */
+    hyperbolicCosine = "hyperbolicCosine",
+    /** The trigonometry math object *Hyperbolic tangent*. */
+    hyperbolicTangent = "hyperbolicTangent",
+    /** The trigonometry math object *Hyperbolic cotangent*. */
+    hyperbolicCotangent = "hyperbolicCotangent",
+    /** The trigonometry math object *Hyperbolic secant*. */
+    hyperbolicSecant = "hyperbolicSecant",
+    /** The trigonometry math object *Hyperbolic cosecant*. */
+    hyperbolicCosecant = "hyperbolicCosecant",
+    /** The trigonometry math object *Area hyperbolic sine*. */
+    areaHyperbolicSine = "areaHyperbolicSine",
+    /** The trigonometry math object *Area hyperbolic cosine*. */
+    areaHyperbolicCosine = "areaHyperbolicCosine",
+    /** The trigonometry math object *Area hyperbolic tangent*. */
+    areaHyperbolicTangent = "areaHyperbolicTangent",
+    /** The trigonometry math object *Area hyperbolic cotangent*. */
+    areaHyperbolicCotangent = "areaHyperbolicCotangent",
+    /** The trigonometry math object *Area hyperbolic secant*. */
+    areaHyperbolicSecant = "areaHyperbolicSecant",
+    /** The trigonometry math object *Area hyperbolic cosecant*. */
+    areaHyperbolicCosecant = "areaHyperbolicCosecant",
+    /** The complex number math object *Imaginary unit*. */
+    imaginaryUnit = "imaginaryUnit",
+    /** The complex number math object *Complex conjugate*. */
+    complexConjugate = "complexConjugate",
+    /** The complex number math object *Real part*. */
+    realPart = "realPart",
+    /** The complex number math object *Imaginary part*. */
+    imaginaryPart = "imaginaryPart",
+    /** The complex number math object *Argument of*. */
+    argumentOf = "argumentOf",
+    /** The matrix math object *Matrix*. */
+    matrix = "matrix",
+    /** The matrix math object *Determinant matrix*. */
+    determinantMatrix = "determinantMatrix",
+    /** The matrix math object *Transpose*. */
+    transpose = "transpose",
+    /** The matrix math object *Matrix element*. */
+    matrixElement = "matrixElement",
+    /** The matrix math object *Determinant*. */
+    determinant = "determinant",
+    /** The matrix math object *Rank*. */
+    rank = "rank",
+    /** The matrix math object *Trace*. */
+    trace = "trace",
+    /** The matrix math object *Hermitian conjugate*. */
+    hermitianConjugate = "hermitianConjugate",
+    /** The matrix math object *Vertical ellipsis*, which inserts the ⋮ operator. */
+    verticalEllipsis = "verticalEllipsis",
+    /** The matrix math object *Diagonal ellipsis*, which inserts the ⋱ operator. */
+    diagonalEllipsis = "diagonalEllipsis",
+    /** The calculus math object *Natural logarithm base*. */
+    naturalLogarithmBase = "naturalLogarithmBase",
+    /** The calculus math object *Infinity*. */
+    infinity = "infinity",
+    /** The calculus math object *Tends to*, which inserts the →​ operator. */
+    tendsTo = "tendsTo",
+    /** The calculus math object *Limit*. */
+    limit = "limit",
+    /** The calculus math object *Change in*. */
+    changeIn = "changeIn",
+    /** The calculus math object *Lagrange 1st derivative*. */
+    Lagrange1stDerivative = "Lagrange1stDerivative",
+    /** The calculus math object *Lagrange 2nd derivative*. */
+    Lagrange2ndDerivative = "Lagrange2ndDerivative",
+    /** The calculus math object *Lagrange 3rd derivative*. */
+    Lagrange3rdDerivative = "Lagrange3rdDerivative",
+    /** The calculus math object *Newton 1st derivative*. */
+    Newton1stDerivative = "Newton1stDerivative",
+    /** The calculus math object *Newton 2nd derivative*. */
+    Newton2ndDerivative = "Newton2ndDerivative",
+    /** The calculus math object *Leibniz 1st derivative*. */
+    Leibniz1stDerivative = "Leibniz1stDerivative",
+    /** The calculus math object *Leibniz 2nd derivative*. */
+    Leibniz2ndDerivative = "Leibniz2ndDerivative",
+    /** The calculus math object *Leibniz nth derivative*. */
+    LeibnizNthDerivative = "LeibnizNthDerivative",
+    /** The calculus math object *Integral*. */
+    integral = "integral",
+    /** The calculus math object *Double integral*. */
+    doubleIntegral = "doubleIntegral",
+    /** The calculus math object *Triple integral*. */
+    tripleIntegral = "tripleIntegral",
+    /** The calculus math object *Contour integral*. */
+    contourIntegral = "contourIntegral",
+    /** The calculus math object *Partial 1st derivative*. */
+    partial1stDerivative = "partial1stDerivative",
+    /** The calculus math object *Partial 2nd derivative*. */
+    partial2ndDerivative = "partial2ndDerivative",
+    /** The calculus math object *Partial 2nd derivative cross*. */
+    partial2ndDerivativeCross = "partial2ndDerivativeCross",
+    /** The calculus math object *Partial nth derivative*. */
+    partialNthDerivative = "partialNthDerivative",
+    /** The calculus math object *Del operator*, which inserts the ∇ operator. */
+    delOperator = "delOperator",
+    /** The calculus math object *Laplacian operator*, which inserts the ∇² operator. */
+    LaplacianOperator = "LaplacianOperator",
+    /** The calculus math object *Wave operator*, which inserts the ⧠ operator. */
+    waveOperator = "waveOperator",
+    /** The calculus math object *Gradient of*. */
+    gradientOf = "gradientOf",
+    /** The calculus math object *Divergence of*. */
+    divergenceOf = "divergenceOf",
+    /** The calculus math object *Rotation of*. */
+    rotationOf = "rotationOf",
+    /** The calculus math object *Convolution*, which inserts the ∗ operator. */
+    convolution = "convolution",
+    /** The calculus math object *Fourier transform*. */
+    FourierTransform = "FourierTransform",
+    /** The calculus math object *Laplace transform*. */
+    LaplaceTransform = "LaplaceTransform",
+    /** The computing math object *String literal*. */
+    stringLiteral = "stringLiteral",
+    /** The computing math object *Is assigned*, which inserts the := operator. */
+    isAssigned = "isAssigned",
+    /** The computing math object *Asymptotically equal to*, which inserts the ≃ operator. */
+    asymptoticallyEqualTo = "asymptoticallyEqualTo",
+    /** The computing math object *Not asymptotically equal to*, which inserts the ≄ operator. */
+    notAsymptoticallyEqualTo = "notAsymptoticallyEqualTo",
+    /** The computing math object *Big O*. */
+    big_O = "big_O",
+    /** The computing math object *Big Theta*. */
+    big_Theta = "big_Theta",
+    /** The computing math object *Big Omega*. */
+    big_Omega = "big_Omega",
+    /** The computing math object *Small o*. */
+    smallO = "smallO",
+    /** The computing math object *Small omega*. */
+    smallOmega = "smallOmega",
+    /** The computing math object *Lambda abstraction*. */
+    lambdaAbstraction = "lambdaAbstraction",
+    /** The computing math object *Noncapturing substitution*. */
+    noncapturingSubstitution = "noncapturingSubstitution",
+    /** The computing math object *Relational selection*. */
+    relationalSelection = "relationalSelection",
+    /** The computing math object *Relational projection*. */
+    relationalProjection = "relationalProjection",
+    /** The computing math object *Relational renaming*. */
+    relationalRenaming = "relationalRenaming",
+    /** The computing math object *Relational join*, which inserts the ⋈ operator. */
+    relationalJoin = "relationalJoin",
+    /** The education math object *Fill in the blank box*. */
+    fillInTheBlankBox = "fillInTheBlankBox",
+    /** The education math object *Spoiler box*. */
+    spoilerBox = "spoilerBox",
+    /** The education math object *Data table*. */
+    dataTable = "dataTable",
+    /** The education math object *Equation addition*. */
+    equationAddition = "equationAddition",
+    /** The education math object *Equation steps*. */
+    equationSteps = "equationSteps",
+    /** The education math object *Grid*. */
+    grid = "grid",
+    /** The education math object *Number line*. */
+    numberLine = "numberLine",
+    /** The education math object *Coordinate plane*. */
+    coordinatePlane = "coordinatePlane",
+    /** The group theory math object *Direct sum*, which inserts the ⊕ operator. */
+    directSum = "directSum",
+    /** The group theory math object *Direct product*, which inserts the ⊗ operator. */
+    directProduct = "directProduct",
+    /** The group theory math object *Semidirect product*, which inserts the ⋊ operator. */
+    semidirectProduct = "semidirectProduct",
+    /** The group theory math object *Wreath product*, which inserts the ≀ operator. */
+    wreathProduct = "wreathProduct",
+    /** The group theory math object *Normal subgroup*, which inserts the ⊲ operator. */
+    normalSubgroup = "normalSubgroup",
+    /** The group theory math object *Normal subgroup or equal*, which inserts the ⊴ operator. */
+    normalSubgroupOrEqual = "normalSubgroupOrEqual",
+    /** The group theory math object *Not a normal subgroup*, which inserts the ⋪ operator. */
+    notANormalSubgroup = "notANormalSubgroup",
+    /** The group theory math object *Generic operator*, which inserts the ⋆ operator. */
+    genericOperator = "genericOperator",
+    /** The group theory math object *Generic operator 2*, which inserts the ∙ operator. */
+    genericOperator2 = "genericOperator2",
+    /** The chemistry editor command *Change to isotope*. */
+    changeToIsotope = "changeToIsotope",
+    /** The chemistry editor command *Change to element*. */
+    changeToElement = "changeToElement",
+    /** The chemistry math object *Yields*, which inserts the → operator. */
+    yields = "yields",
+    /** The chemistry math object *Does not yield*, which inserts the ↛ operator. */
+    doesNotYield = "doesNotYield",
+    /** The chemistry math object *Equilibrium*, which inserts the ⇌ operator. */
+    equilibrium = "equilibrium",
+    /** The chemistry math object *Yields both directions*, which inserts the ⇄ operator. */
+    yieldsBothDirections = "yieldsBothDirections",
+    /** The chemistry math object *Yields net backward*, which inserts the ← operator. */
+    yieldsNetBackward = "yieldsNetBackward",
+    /** The chemistry math object *Yields with heat*, which inserts the → operator with △ above. */
+    yieldsWithHeat = "yieldsWithHeat",
+    /** The chemistry math object *Yields with light*, which inserts the → operator with hν above. */
+    yieldsWithLight = "yieldsWithLight",
+    /** The chemistry math object *Yields with catalyst*. */
+    yieldsWithCatalyst = "yieldsWithCatalyst",
+    /** The chemistry math object *Caged atom*, which inserts the @ operator. */
+    cagedAtom = "cagedAtom",
+    /** The chemistry math object *Solid state*. */
+    solidState = "solidState",
+    /** The chemistry math object *Liquid state*. */
+    liquidState = "liquidState",
+    /** The chemistry math object *Gaseous state*. */
+    gaseousState = "gaseousState",
+    /** The chemistry math object *Aqueous state*. */
+    aqueousState = "aqueousState",
+    /** The chemistry math object *Crystalline state*. */
+    crystallineState = "crystallineState",
+    /** The chemistry math object *Precipitate produced*. */
+    precipitateProduced = "precipitateProduced",
+    /** The chemistry math object *Gas produced*. */
+    gasProduced = "gasProduced",
+    /** The chemistry math object *Electron*. */
+    electron = "electron",
+    /** The chemistry math object *Positron*. */
+    positron = "positron",
+    /** The chemistry math object *Proton*. */
+    proton = "proton",
+    /** The chemistry math object *Antiproton*. */
+    antiproton = "antiproton",
+    /** The chemistry math object *Neutron*. */
+    neutron = "neutron",
+    /** The chemistry math object *Antineutron*. */
+    antineutron = "antineutron",
+    /** The chemistry math object *Neutrino*. */
+    neutrino = "neutrino",
+    /** The chemistry math object *Antineutrino*. */
+    antineutrino = "antineutrino",
+    /** The chemistry math object *Muon*. */
+    muon = "muon",
+    /** The chemistry math object *Antimuon*. */
+    antimuon = "antimuon",
+    /** The chemistry math object *Muon neutrino*. */
+    muonNeutrino = "muonNeutrino",
+    /** The chemistry math object *Muon antineutrino*. */
+    muonAntineutrino = "muonAntineutrino",
+    /** The chemistry math object *Tauon*. */
+    tauon = "tauon",
+    /** The chemistry math object *Antitauon*. */
+    antitauon = "antitauon",
+    /** The chemistry math object *Tau neutrino*. */
+    tauNeutrino = "tauNeutrino",
+    /** The chemistry math object *Tau antineutrino*. */
+    tauAntineutrino = "tauAntineutrino",
+    /** The chemistry math object *Deuterium*. */
+    deuterium = "deuterium",
+    /** The chemistry math object *Tritium*. */
+    tritium = "tritium",
+    /** The chemistry math object *Thoron*. */
+    thoron = "thoron",
+    /** The chemistry math object *Hydrogen*, which inserts **H**, the symbol for the element with atomic number 1. */
+    hydrogen = "hydrogen",
+    /** The chemistry math object *Helium*, which inserts **He**, the symbol for the element with atomic number 2. */
+    helium = "helium",
+    /** The chemistry math object *Lithium*, which inserts **Li**, the symbol for the element with atomic number 3. */
+    lithium = "lithium",
+    /** The chemistry math object *Beryllium*, which inserts **Be**, the symbol for the element with atomic number 4. */
+    beryllium = "beryllium",
+    /** The chemistry math object *Boron*, which inserts **B**, the symbol for the element with atomic number 5. */
+    boron = "boron",
+    /** The chemistry math object *Carbon*, which inserts **C**, the symbol for the element with atomic number 6. */
+    carbon = "carbon",
+    /** The chemistry math object *Nitrogen*, which inserts **N**, the symbol for the element with atomic number 7. */
+    nitrogen = "nitrogen",
+    /** The chemistry math object *Oxygen*, which inserts **O**, the symbol for the element with atomic number 8. */
+    oxygen = "oxygen",
+    /** The chemistry math object *Fluorine*, which inserts **F**, the symbol for the element with atomic number 9. */
+    fluorine = "fluorine",
+    /** The chemistry math object *Neon*, which inserts **Ne**, the symbol for the element with atomic number 10. */
+    neon = "neon",
+    /** The chemistry math object *Sodium*, which inserts **Na**, the symbol for the element with atomic number 11. */
+    sodium = "sodium",
+    /** The chemistry math object *Magnesium*, which inserts **Mg**, the symbol for the element with atomic number 12. */
+    magnesium = "magnesium",
+    /** The chemistry math object *Aluminium*, which inserts **Al**, the symbol for the element with atomic number 13. */
+    aluminium = "aluminium",
+    /** The chemistry math object *Silicon*, which inserts **Si**, the symbol for the element with atomic number 14. */
+    silicon = "silicon",
+    /** The chemistry math object *Phosphorus*, which inserts **P**, the symbol for the element with atomic number 15. */
+    phosphorus = "phosphorus",
+    /** The chemistry math object *Sulfur*, which inserts **S**, the symbol for the element with atomic number 16. */
+    sulfur = "sulfur",
+    /** The chemistry math object *Chlorine*, which inserts **Cl**, the symbol for the element with atomic number 17. */
+    chlorine = "chlorine",
+    /** The chemistry math object *Argon*, which inserts **Ar**, the symbol for the element with atomic number 18. */
+    argon = "argon",
+    /** The chemistry math object *Potassium*, which inserts **K**, the symbol for the element with atomic number 19. */
+    potassium = "potassium",
+    /** The chemistry math object *Calcium*, which inserts **Ca**, the symbol for the element with atomic number 20. */
+    calcium = "calcium",
+    /** The chemistry math object *Scandium*, which inserts **Sc**, the symbol for the element with atomic number 21. */
+    scandium = "scandium",
+    /** The chemistry math object *Titanium*, which inserts **Ti**, the symbol for the element with atomic number 22. */
+    titanium = "titanium",
+    /** The chemistry math object *Vanadium*, which inserts **V**, the symbol for the element with atomic number 23. */
+    vanadium = "vanadium",
+    /** The chemistry math object *Chromium*, which inserts **Cr**, the symbol for the element with atomic number 24. */
+    chromium = "chromium",
+    /** The chemistry math object *Manganese*, which inserts **Mn**, the symbol for the element with atomic number 25. */
+    manganese = "manganese",
+    /** The chemistry math object *Iron*, which inserts **Fe**, the symbol for the element with atomic number 26. */
+    iron = "iron",
+    /** The chemistry math object *Cobalt*, which inserts **Co**, the symbol for the element with atomic number 27. */
+    cobalt = "cobalt",
+    /** The chemistry math object *Nickel*, which inserts **Ni**, the symbol for the element with atomic number 28. */
+    nickel = "nickel",
+    /** The chemistry math object *Copper*, which inserts **Cu**, the symbol for the element with atomic number 29. */
+    copper = "copper",
+    /** The chemistry math object *Zinc*, which inserts **Zn**, the symbol for the element with atomic number 30. */
+    zinc = "zinc",
+    /** The chemistry math object *Gallium*, which inserts **Ga**, the symbol for the element with atomic number 31. */
+    gallium = "gallium",
+    /** The chemistry math object *Germanium*, which inserts **Ge**, the symbol for the element with atomic number 32. */
+    germanium = "germanium",
+    /** The chemistry math object *Arsenic*, which inserts **As**, the symbol for the element with atomic number 33. */
+    arsenic = "arsenic",
+    /** The chemistry math object *Selenium*, which inserts **Se**, the symbol for the element with atomic number 34. */
+    selenium = "selenium",
+    /** The chemistry math object *Bromine*, which inserts **Br**, the symbol for the element with atomic number 35. */
+    bromine = "bromine",
+    /** The chemistry math object *Krypton*, which inserts **Kr**, the symbol for the element with atomic number 36. */
+    krypton = "krypton",
+    /** The chemistry math object *Rubidium*, which inserts **Rb**, the symbol for the element with atomic number 37. */
+    rubidium = "rubidium",
+    /** The chemistry math object *Strontium*, which inserts **Sr**, the symbol for the element with atomic number 38. */
+    strontium = "strontium",
+    /** The chemistry math object *Yttrium*, which inserts **Y**, the symbol for the element with atomic number 39. */
+    yttrium = "yttrium",
+    /** The chemistry math object *Zirconium*, which inserts **Zr**, the symbol for the element with atomic number 40. */
+    zirconium = "zirconium",
+    /** The chemistry math object *Niobium*, which inserts **Nb**, the symbol for the element with atomic number 41. */
+    niobium = "niobium",
+    /** The chemistry math object *Molybdenum*, which inserts **Mo**, the symbol for the element with atomic number 42. */
+    molybdenum = "molybdenum",
+    /** The chemistry math object *Technetium*, which inserts **Tc**, the symbol for the element with atomic number 43. */
+    technetium = "technetium",
+    /** The chemistry math object *Ruthenium*, which inserts **Ru**, the symbol for the element with atomic number 44. */
+    ruthenium = "ruthenium",
+    /** The chemistry math object *Rhodium*, which inserts **Rh**, the symbol for the element with atomic number 45. */
+    rhodium = "rhodium",
+    /** The chemistry math object *Palladium*, which inserts **Pd**, the symbol for the element with atomic number 46. */
+    palladium = "palladium",
+    /** The chemistry math object *Silver*, which inserts **Ag**, the symbol for the element with atomic number 47. */
+    silver = "silver",
+    /** The chemistry math object *Cadmium*, which inserts **Cd**, the symbol for the element with atomic number 48. */
+    cadmium = "cadmium",
+    /** The chemistry math object *Indium*, which inserts **In**, the symbol for the element with atomic number 49. */
+    indium = "indium",
+    /** The chemistry math object *Tin*, which inserts **Sn**, the symbol for the element with atomic number 50. */
+    tin = "tin",
+    /** The chemistry math object *Antimony*, which inserts **Sb**, the symbol for the element with atomic number 51. */
+    antimony = "antimony",
+    /** The chemistry math object *Tellurium*, which inserts **Te**, the symbol for the element with atomic number 52. */
+    tellurium = "tellurium",
+    /** The chemistry math object *Iodine*, which inserts **I**, the symbol for the element with atomic number 53. */
+    iodine = "iodine",
+    /** The chemistry math object *Xenon*, which inserts **Xe**, the symbol for the element with atomic number 54. */
+    xenon = "xenon",
+    /** The chemistry math object *Cesium*, which inserts **Cs**, the symbol for the element with atomic number 55. */
+    cesium = "cesium",
+    /** The chemistry math object *Barium*, which inserts **Ba**, the symbol for the element with atomic number 56. */
+    barium = "barium",
+    /** The chemistry math object *Lanthanum*, which inserts **La**, the symbol for the element with atomic number 57. */
+    lanthanum = "lanthanum",
+    /** The chemistry math object *Cerium*, which inserts **Ce**, the symbol for the element with atomic number 58. */
+    cerium = "cerium",
+    /** The chemistry math object *Praseodymium*, which inserts **Pr**, the symbol for the element with atomic number 59. */
+    praseodymium = "praseodymium",
+    /** The chemistry math object *Neodymium*, which inserts **Nd**, the symbol for the element with atomic number 60. */
+    neodymium = "neodymium",
+    /** The chemistry math object *Promethium*, which inserts **Pm**, the symbol for the element with atomic number 61. */
+    promethium = "promethium",
+    /** The chemistry math object *Samarium*, which inserts **Sm**, the symbol for the element with atomic number 62. */
+    samarium = "samarium",
+    /** The chemistry math object *Europium*, which inserts **Eu**, the symbol for the element with atomic number 63. */
+    europium = "europium",
+    /** The chemistry math object *Gadolinium*, which inserts **Gd**, the symbol for the element with atomic number 64. */
+    gadolinium = "gadolinium",
+    /** The chemistry math object *Terbium*, which inserts **Tb**, the symbol for the element with atomic number 65. */
+    terbium = "terbium",
+    /** The chemistry math object *Dysprosium*, which inserts **Dy**, the symbol for the element with atomic number 66. */
+    dysprosium = "dysprosium",
+    /** The chemistry math object *Holmium*, which inserts **Ho**, the symbol for the element with atomic number 67. */
+    holmium = "holmium",
+    /** The chemistry math object *Erbium*, which inserts **Er**, the symbol for the element with atomic number 68. */
+    erbium = "erbium",
+    /** The chemistry math object *Thulium*, which inserts **Tm**, the symbol for the element with atomic number 69. */
+    thulium = "thulium",
+    /** The chemistry math object *Ytterbium*, which inserts **Yb**, the symbol for the element with atomic number 70. */
+    ytterbium = "ytterbium",
+    /** The chemistry math object *Lutetium*, which inserts **Lu**, the symbol for the element with atomic number 71. */
+    lutetium = "lutetium",
+    /** The chemistry math object *Hafnium*, which inserts **Hf**, the symbol for the element with atomic number 72. */
+    hafnium = "hafnium",
+    /** The chemistry math object *Tantalum*, which inserts **Ta**, the symbol for the element with atomic number 73. */
+    tantalum = "tantalum",
+    /** The chemistry math object *Tungsten*, which inserts **W**, the symbol for the element with atomic number 74. */
+    tungsten = "tungsten",
+    /** The chemistry math object *Rhenium*, which inserts **Re**, the symbol for the element with atomic number 75. */
+    rhenium = "rhenium",
+    /** The chemistry math object *Osmium*, which inserts **Os**, the symbol for the element with atomic number 76. */
+    osmium = "osmium",
+    /** The chemistry math object *Iridium*, which inserts **Ir**, the symbol for the element with atomic number 77. */
+    iridium = "iridium",
+    /** The chemistry math object *Platinum*, which inserts **Pt**, the symbol for the element with atomic number 78. */
+    platinum = "platinum",
+    /** The chemistry math object *Gold*, which inserts **Au**, the symbol for the element with atomic number 79. */
+    gold = "gold",
+    /** The chemistry math object *Mercury*, which inserts **Hg**, the symbol for the element with atomic number 80. */
+    mercury = "mercury",
+    /** The chemistry math object *Thallium*, which inserts **Tl**, the symbol for the element with atomic number 81. */
+    thallium = "thallium",
+    /** The chemistry math object *Lead*, which inserts **Pb**, the symbol for the element with atomic number 82. */
+    lead = "lead",
+    /** The chemistry math object *Bismuth*, which inserts **Bi**, the symbol for the element with atomic number 83. */
+    bismuth = "bismuth",
+    /** The chemistry math object *Polonium*, which inserts **Po**, the symbol for the element with atomic number 84. */
+    polonium = "polonium",
+    /** The chemistry math object *Astatine*, which inserts **At**, the symbol for the element with atomic number 85. */
+    astatine = "astatine",
+    /** The chemistry math object *Radon*, which inserts **Rn**, the symbol for the element with atomic number 86. */
+    radon = "radon",
+    /** The chemistry math object *Francium*, which inserts **Fr**, the symbol for the element with atomic number 87. */
+    francium = "francium",
+    /** The chemistry math object *Radium*, which inserts **Ra**, the symbol for the element with atomic number 88. */
+    radium = "radium",
+    /** The chemistry math object *Actinium*, which inserts **Ac**, the symbol for the element with atomic number 89. */
+    actinium = "actinium",
+    /** The chemistry math object *Thorium*, which inserts **Th**, the symbol for the element with atomic number 90. */
+    thorium = "thorium",
+    /** The chemistry math object *Protactinium*, which inserts **Pa**, the symbol for the element with atomic number 91. */
+    protactinium = "protactinium",
+    /** The chemistry math object *Uranium*, which inserts **U**, the symbol for the element with atomic number 92. */
+    uranium = "uranium",
+    /** The chemistry math object *Neptunium*, which inserts **Np**, the symbol for the element with atomic number 93. */
+    neptunium = "neptunium",
+    /** The chemistry math object *Plutonium*, which inserts **Pu**, the symbol for the element with atomic number 94. */
+    plutonium = "plutonium",
+    /** The chemistry math object *Americium*, which inserts **Am**, the symbol for the element with atomic number 95. */
+    americium = "americium",
+    /** The chemistry math object *Curium*, which inserts **Cm**, the symbol for the element with atomic number 96. */
+    curium = "curium",
+    /** The chemistry math object *Berkelium*, which inserts **Bk**, the symbol for the element with atomic number 97. */
+    berkelium = "berkelium",
+    /** The chemistry math object *Californium*, which inserts **Cf**, the symbol for the element with atomic number 98. */
+    californium = "californium",
+    /** The chemistry math object *Einsteinium*, which inserts **Es**, the symbol for the element with atomic number 99. */
+    einsteinium = "einsteinium",
+    /** The chemistry math object *Fermium*, which inserts **Fm**, the symbol for the element with atomic number 100. */
+    fermium = "fermium",
+    /** The chemistry math object *Mendelevium*, which inserts **Md**, the symbol for the element with atomic number 101. */
+    mendelevium = "mendelevium",
+    /** The chemistry math object *Nobelium*, which inserts **No**, the symbol for the element with atomic number 102. */
+    nobelium = "nobelium",
+    /** The chemistry math object *Lawrencium*, which inserts **Lr**, the symbol for the element with atomic number 103. */
+    lawrencium = "lawrencium",
+    /** The chemistry math object *Rutherfordium*, which inserts **Rf**, the symbol for the element with atomic number 104. */
+    rutherfordium = "rutherfordium",
+    /** The chemistry math object *Dubnium*, which inserts **Db**, the symbol for the element with atomic number 105. */
+    dubnium = "dubnium",
+    /** The chemistry math object *Seaborgium*, which inserts **Sg**, the symbol for the element with atomic number 106. */
+    seaborgium = "seaborgium",
+    /** The chemistry math object *Bohrium*, which inserts **Bh**, the symbol for the element with atomic number 107. */
+    bohrium = "bohrium",
+    /** The chemistry math object *Hassium*, which inserts **Hs**, the symbol for the element with atomic number 108. */
+    hassium = "hassium",
+    /** The chemistry math object *Meitnerium*, which inserts **Mt**, the symbol for the element with atomic number 109. */
+    meitnerium = "meitnerium",
+    /** The chemistry math object *Darmstadtium*, which inserts **Ds**, the symbol for the element with atomic number 110. */
+    darmstadtium = "darmstadtium",
+    /** The chemistry math object *Roentgenium*, which inserts **Rg**, the symbol for the element with atomic number 111. */
+    roentgenium = "roentgenium",
+    /** The chemistry math object *Copernicium*, which inserts **Cn**, the symbol for the element with atomic number 112. */
+    copernicium = "copernicium",
+    /** The chemistry math object *Nihonium*, which inserts **Nh**, the symbol for the element with atomic number 113. */
+    nihonium = "nihonium",
+    /** The chemistry math object *Flerovium*, which inserts **Fl**, the symbol for the element with atomic number 114. */
+    flerovium = "flerovium",
+    /** The chemistry math object *Moscovium*, which inserts **Mc**, the symbol for the element with atomic number 115. */
+    moscovium = "moscovium",
+    /** The chemistry math object *Livermorium*, which inserts **Lv**, the symbol for the element with atomic number 116. */
+    livermorium = "livermorium",
+    /** The chemistry math object *Tennessine*, which inserts **Ts**, the symbol for the element with atomic number 117. */
+    tennessine = "tennessine",
+    /** The chemistry math object *Oganesson*, which inserts **Og**, the symbol for the element with atomic number 118. */
+    oganesson = "oganesson",
+    /** The chemistry math object *Ununennium*, which inserts **Uue**, the symbol for the element with atomic number 119. */
+    ununennium = "ununennium",
+    /** The annotation editor command *Text*. */
+    text = "text",
+    /** The annotation math object *Brace over*. */
+    braceOver = "braceOver",
+    /** The annotation math object *Brace under*. */
+    braceUnder = "braceUnder",
+    /** The style math object *Small*, which scales content by 67%. */
+    small = "small",
+    /** The style math object *Big*, which scales content by 133%. */
+    big = "big",
+    /** The style math object *Brown*, which decorates content with colour #3e2723. */
+    brown = "brown",
+    /** The style math object *Orange*, which decorates content with colour #e65100. */
+    orange = "orange",
+    /** The style math object *Yellow*, which decorates content with colour #ffd600. */
+    yellow = "yellow",
+    /** The style math object *Lime*, which decorates content with colour #827717. */
+    lime = "lime",
+    /** The style math object *Green*, which decorates content with colour #33691e. */
+    green = "green",
+    /** The style math object *Teal*, which decorates content with colour #006064. */
+    teal = "teal",
+    /** The style math object *Blue*, which decorates content with colour #01579b. */
+    blue = "blue",
+    /** The style math object *Indigo*, which decorates content with colour #1a237e. */
+    indigo = "indigo",
+    /** The style math object *Purple*, which decorates content with colour #4a148c. */
+    purple = "purple",
+    /** The style math object *Red*, which decorates content with colour #b71c1c. */
+    red = "red",
+    /** The style math object *Pink*, which decorates content with colour #e91e63. */
+    pink = "pink",
+    /** The style math object *Black*, which decorates content with colour #000000. */
+    black = "black",
+    /** The style math object *Dark grey*, which decorates content with colour #616161. */
+    darkGrey = "darkGrey",
+    /** The style math object *Grey*, which decorates content with colour #9e9e9e. */
+    grey = "grey",
+    /** The style math object *Light grey*, which decorates content with colour #e0e0e0. */
+    lightGrey = "lightGrey",
+    /** The style math object *White*, which decorates content with colour #ffffff. */
+    white = "white",
+    /** The memory cell editor command *Copy to cell 1*. */
+    copyToCell1 = "copyToCell1",
+    /** The memory cell editor command *Paste from cell 1*. */
+    pasteFromCell1 = "pasteFromCell1",
+    /** The memory cell editor command *Copy to cell 2*. */
+    copyToCell2 = "copyToCell2",
+    /** The memory cell editor command *Paste from cell 2*. */
+    pasteFromCell2 = "pasteFromCell2",
+    /** The memory cell editor command *Copy to cell 3*. */
+    copyToCell3 = "copyToCell3",
+    /** The memory cell editor command *Paste from cell 3*. */
+    pasteFromCell3 = "pasteFromCell3",
+    /** The memory cell editor command *Copy to cell 4*. */
+    copyToCell4 = "copyToCell4",
+    /** The memory cell editor command *Paste from cell 4*. */
+    pasteFromCell4 = "pasteFromCell4",
+    /** The memory cell editor command *Copy to cell 5*. */
+    copyToCell5 = "copyToCell5",
+    /** The memory cell editor command *Paste from cell 5*. */
+    pasteFromCell5 = "pasteFromCell5",
+    /** The memory cell editor command *Copy to cell 6*. */
+    copyToCell6 = "copyToCell6",
+    /** The memory cell editor command *Paste from cell 6*. */
+    pasteFromCell6 = "pasteFromCell6",
+    /** The memory cell editor command *Copy to cell 7*. */
+    copyToCell7 = "copyToCell7",
+    /** The memory cell editor command *Paste from cell 7*. */
+    pasteFromCell7 = "pasteFromCell7",
+    /** The memory cell editor command *Copy to cell 8*. */
+    copyToCell8 = "copyToCell8",
+    /** The memory cell editor command *Paste from cell 8*. */
+    pasteFromCell8 = "pasteFromCell8",
+    /** The memory cell editor command *Copy to cell 9*. */
+    copyToCell9 = "copyToCell9",
+    /** The memory cell editor command *Paste from cell 9*. */
+    pasteFromCell9 = "pasteFromCell9",
+    /** The memory cell editor command *Copy to cell 10*. */
+    copyToCell10 = "copyToCell10",
+    /** The memory cell editor command *Paste from cell 10*. */
+    pasteFromCell10 = "pasteFromCell10",
+    /** The hidden editor command *No op*, which is always *applicable* but has no effect. */
+    noOp = "noOp",
+    /** The hidden editor command *Impossible op*, which is never *applicable*. */
+    impossibleOp = "impossibleOp",
+    /** The hidden editor command *Delete selection*. */
+    deleteSelection = "deleteSelection",
+    /** The hidden editor command *Calculate*. */
+    calculate = "calculate",
+    /** The hidden editor command *Calculate on new line*. */
+    calculateOnNewLine = "calculateOnNewLine",
+    /** The hidden editor command *Print*. */
+    print = "print",
+    /** The hidden math object *Slash divides*, which inserts the / operator. */
+    slashDivides = "slashDivides",
+    /** The hidden math object *Text annotation*. */
+    textAnnotation = "textAnnotation",
+    /** The hidden math object *Zero vector*. */
+    zeroVector = "zeroVector",
+    /** The hidden math object *Planck constant*. */
+    PlanckConstant = "PlanckConstant",
+    /** The hidden math object *Reduced Planck constant*. */
+    reduced_PlanckConstant = "reduced_PlanckConstant",
+  }
+  /**
+   * Enumeration of recognized keystroke gestures. Note that some gestures may not be available on some platforms as the system or browser may intercept them. The preferred way to specify gestures that produce a printable character is to use a string consisting of that character. 
+   * @see [[gestureMap]]
+   */
+  const enum Keystroke {
+    /** The keystroke gesture `F1`. */
+    F1 = "F1",
+    /** The keystroke gesture `F2`. */
+    F2 = "F2",
+    /** The keystroke gesture `F3`. */
+    F3 = "F3",
+    /** The keystroke gesture `F4`. */
+    F4 = "F4",
+    /** The keystroke gesture `F5`. */
+    F5 = "F5",
+    /** The keystroke gesture `F6`. */
+    F6 = "F6",
+    /** The keystroke gesture `F7`. */
+    F7 = "F7",
+    /** The keystroke gesture `F8`. */
+    F8 = "F8",
+    /** The keystroke gesture `F9`. */
+    F9 = "F9",
+    /** The keystroke gesture `F10`. */
+    F10 = "F10",
+    /** The keystroke gesture `F11`. */
+    F11 = "F11",
+    /** The keystroke gesture `F12`. */
+    F12 = "F12",
+    /** The keystroke gesture `Escape`. */
+    Escape = "Escape",
+    /** The keystroke gesture `Insert`. */
+    Insert = "Insert",
+    /** The keystroke gesture `Delete`. */
+    Delete = "Delete",
+    /** The keystroke gesture `Backspace`. */
+    Backspace = "Backspace",
+    /** The keystroke gesture `Home`. */
+    Home = "Home",
+    /** The keystroke gesture `End`. */
+    End = "End",
+    /** The keystroke gesture `Page Up`. */
+    PageUp = "PageUp",
+    /** The keystroke gesture `Page Down`. */
+    PageDown = "PageDown",
+    /** The keystroke gesture `Up`. */
+    ArrowUp = "ArrowUp",
+    /** The keystroke gesture `Down`. */
+    ArrowDown = "ArrowDown",
+    /** The keystroke gesture `Left`. */
+    ArrowLeft = "ArrowLeft",
+    /** The keystroke gesture `Right`. */
+    ArrowRight = "ArrowRight",
+    /** The keystroke gesture `Enter`. */
+    Enter = "Enter",
+    /** The keystroke gesture `Menu Key`. */
+    MenuKey = "MenuKey",
+    /** The keystroke gesture `Shift` + `F1`. */
+    ShiftF1 = "Shift F1",
+    /** The keystroke gesture `Shift` + `F2`. */
+    ShiftF2 = "Shift F2",
+    /** The keystroke gesture `Shift` + `F3`. */
+    ShiftF3 = "Shift F3",
+    /** The keystroke gesture `Shift` + `F4`. */
+    ShiftF4 = "Shift F4",
+    /** The keystroke gesture `Shift` + `F5`. */
+    ShiftF5 = "Shift F5",
+    /** The keystroke gesture `Shift` + `F6`. */
+    ShiftF6 = "Shift F6",
+    /** The keystroke gesture `Shift` + `F7`. */
+    ShiftF7 = "Shift F7",
+    /** The keystroke gesture `Shift` + `F8`. */
+    ShiftF8 = "Shift F8",
+    /** The keystroke gesture `Shift` + `F9`. */
+    ShiftF9 = "Shift F9",
+    /** The keystroke gesture `Shift` + `F10`. */
+    ShiftF10 = "Shift F10",
+    /** The keystroke gesture `Shift` + `F11`. */
+    ShiftF11 = "Shift F11",
+    /** The keystroke gesture `Shift` + `F12`. */
+    ShiftF12 = "Shift F12",
+    /** The keystroke gesture `Shift` + `Escape`. */
+    ShiftEscape = "Shift Escape",
+    /** The keystroke gesture `Shift` + `Insert`. */
+    ShiftInsert = "Shift Insert",
+    /** The keystroke gesture `Shift` + `Delete`. */
+    ShiftDelete = "Shift Delete",
+    /** The keystroke gesture `Shift` + `Backspace`. */
+    ShiftBackspace = "Shift Backspace",
+    /** The keystroke gesture `Shift` + `Home`. */
+    ShiftHome = "Shift Home",
+    /** The keystroke gesture `Shift` + `End`. */
+    ShiftEnd = "Shift End",
+    /** The keystroke gesture `Shift` + `Page Up`. */
+    ShiftPageUp = "Shift PageUp",
+    /** The keystroke gesture `Shift` + `Page Down`. */
+    ShiftPageDown = "Shift PageDown",
+    /** The keystroke gesture `Shift` + `Up`. */
+    ShiftArrowUp = "Shift ArrowUp",
+    /** The keystroke gesture `Shift` + `Down`. */
+    ShiftArrowDown = "Shift ArrowDown",
+    /** The keystroke gesture `Shift` + `Left`. */
+    ShiftArrowLeft = "Shift ArrowLeft",
+    /** The keystroke gesture `Shift` + `Right`. */
+    ShiftArrowRight = "Shift ArrowRight",
+    /** The keystroke gesture `Shift` + `Enter`. */
+    ShiftEnter = "Shift Enter",
+    /** The keystroke gesture `Shift` + `Menu Key`. */
+    ShiftMenuKey = "Shift MenuKey",
+    /** The keystroke gesture `Ctrl` + `A`. (`Command` + `A` on Apple devices.) */
+    CtrlA = "Ctrl A",
+    /** The keystroke gesture `Ctrl` + `B`. (`Command` + `B` on Apple devices.) */
+    CtrlB = "Ctrl B",
+    /** The keystroke gesture `Ctrl` + `C`. (`Command` + `C` on Apple devices.) */
+    CtrlC = "Ctrl C",
+    /** The keystroke gesture `Ctrl` + `D`. (`Command` + `D` on Apple devices.) */
+    CtrlD = "Ctrl D",
+    /** The keystroke gesture `Ctrl` + `E`. (`Command` + `E` on Apple devices.) */
+    CtrlE = "Ctrl E",
+    /** The keystroke gesture `Ctrl` + `F`. (`Command` + `F` on Apple devices.) */
+    CtrlF = "Ctrl F",
+    /** The keystroke gesture `Ctrl` + `G`. (`Command` + `G` on Apple devices.) */
+    CtrlG = "Ctrl G",
+    /** The keystroke gesture `Ctrl` + `H`. (`Command` + `H` on Apple devices.) */
+    CtrlH = "Ctrl H",
+    /** The keystroke gesture `Ctrl` + `I`. (`Command` + `I` on Apple devices.) */
+    CtrlI = "Ctrl I",
+    /** The keystroke gesture `Ctrl` + `J`. (`Command` + `J` on Apple devices.) */
+    CtrlJ = "Ctrl J",
+    /** The keystroke gesture `Ctrl` + `K`. (`Command` + `K` on Apple devices.) */
+    CtrlK = "Ctrl K",
+    /** The keystroke gesture `Ctrl` + `L`. (`Command` + `L` on Apple devices.) */
+    CtrlL = "Ctrl L",
+    /** The keystroke gesture `Ctrl` + `M`. (`Command` + `M` on Apple devices.) */
+    CtrlM = "Ctrl M",
+    /** The keystroke gesture `Ctrl` + `N`. (`Command` + `N` on Apple devices.) */
+    CtrlN = "Ctrl N",
+    /** The keystroke gesture `Ctrl` + `O`. (`Command` + `O` on Apple devices.) */
+    CtrlO = "Ctrl O",
+    /** The keystroke gesture `Ctrl` + `P`. (`Command` + `P` on Apple devices.) */
+    CtrlP = "Ctrl P",
+    /** The keystroke gesture `Ctrl` + `Q`. (`Command` + `Q` on Apple devices.) */
+    CtrlQ = "Ctrl Q",
+    /** The keystroke gesture `Ctrl` + `R`. (`Command` + `R` on Apple devices.) */
+    CtrlR = "Ctrl R",
+    /** The keystroke gesture `Ctrl` + `S`. (`Command` + `S` on Apple devices.) */
+    CtrlS = "Ctrl S",
+    /** The keystroke gesture `Ctrl` + `T`. (`Command` + `T` on Apple devices.) */
+    CtrlT = "Ctrl T",
+    /** The keystroke gesture `Ctrl` + `U`. (`Command` + `U` on Apple devices.) */
+    CtrlU = "Ctrl U",
+    /** The keystroke gesture `Ctrl` + `V`. (`Command` + `V` on Apple devices.) */
+    CtrlV = "Ctrl V",
+    /** The keystroke gesture `Ctrl` + `W`. (`Command` + `W` on Apple devices.) */
+    CtrlW = "Ctrl W",
+    /** The keystroke gesture `Ctrl` + `X`. (`Command` + `X` on Apple devices.) */
+    CtrlX = "Ctrl X",
+    /** The keystroke gesture `Ctrl` + `Y`. (`Command` + `Y` on Apple devices.) */
+    CtrlY = "Ctrl Y",
+    /** The keystroke gesture `Ctrl` + `Z`. (`Command` + `Z` on Apple devices.) */
+    CtrlZ = "Ctrl Z",
+    /** The keystroke gesture `Ctrl` + `0`. (`Command` + `0` on Apple devices.) */
+    Ctrl0 = "Ctrl num0",
+    /** The keystroke gesture `Ctrl` + `1`. (`Command` + `1` on Apple devices.) */
+    Ctrl1 = "Ctrl num1",
+    /** The keystroke gesture `Ctrl` + `2`. (`Command` + `2` on Apple devices.) */
+    Ctrl2 = "Ctrl num2",
+    /** The keystroke gesture `Ctrl` + `3`. (`Command` + `3` on Apple devices.) */
+    Ctrl3 = "Ctrl num3",
+    /** The keystroke gesture `Ctrl` + `4`. (`Command` + `4` on Apple devices.) */
+    Ctrl4 = "Ctrl num4",
+    /** The keystroke gesture `Ctrl` + `5`. (`Command` + `5` on Apple devices.) */
+    Ctrl5 = "Ctrl num5",
+    /** The keystroke gesture `Ctrl` + `6`. (`Command` + `6` on Apple devices.) */
+    Ctrl6 = "Ctrl num6",
+    /** The keystroke gesture `Ctrl` + `7`. (`Command` + `7` on Apple devices.) */
+    Ctrl7 = "Ctrl num7",
+    /** The keystroke gesture `Ctrl` + `8`. (`Command` + `8` on Apple devices.) */
+    Ctrl8 = "Ctrl num8",
+    /** The keystroke gesture `Ctrl` + `9`. (`Command` + `9` on Apple devices.) */
+    Ctrl9 = "Ctrl num9",
+    /** The keystroke gesture `Ctrl` + `Space`. (`Command` + `Space` on Apple devices.) */
+    CtrlSpace = "Ctrl Space",
+    /** The keystroke gesture `Ctrl` + `Slash`. (`Command` + `Slash` on Apple devices.) */
+    CtrlSlash = "Ctrl Slash",
+    /** The keystroke gesture `Ctrl` + `Comma`. (`Command` + `Comma` on Apple devices.) */
+    CtrlComma = "Ctrl Comma",
+    /** The keystroke gesture `Ctrl` + `Period`. (`Command` + `Period` on Apple devices.) */
+    CtrlPeriod = "Ctrl Period",
+    /** The keystroke gesture `Ctrl` + `Minus`. (`Command` + `Minus` on Apple devices.) */
+    CtrlMinus = "Ctrl Minus",
+    /** The keystroke gesture `Ctrl` + `Equals`. (`Command` + `Equals` on Apple devices.) */
+    CtrlEquals = "Ctrl Equals",
+    /** The keystroke gesture `Ctrl` + `Bracket Left`. (`Command` + `Bracket Left` on Apple devices.) */
+    CtrlBracketLeft = "Ctrl BracketLeft",
+    /** The keystroke gesture `Ctrl` + `Bracket Right`. (`Command` + `Bracket Right` on Apple devices.) */
+    CtrlBracketRight = "Ctrl BracketRight",
+    /** The keystroke gesture `Ctrl` + `F1`. (`Command` + `F1` on Apple devices.) */
+    CtrlF1 = "Ctrl F1",
+    /** The keystroke gesture `Ctrl` + `F2`. (`Command` + `F2` on Apple devices.) */
+    CtrlF2 = "Ctrl F2",
+    /** The keystroke gesture `Ctrl` + `F3`. (`Command` + `F3` on Apple devices.) */
+    CtrlF3 = "Ctrl F3",
+    /** The keystroke gesture `Ctrl` + `F4`. (`Command` + `F4` on Apple devices.) */
+    CtrlF4 = "Ctrl F4",
+    /** The keystroke gesture `Ctrl` + `F5`. (`Command` + `F5` on Apple devices.) */
+    CtrlF5 = "Ctrl F5",
+    /** The keystroke gesture `Ctrl` + `F6`. (`Command` + `F6` on Apple devices.) */
+    CtrlF6 = "Ctrl F6",
+    /** The keystroke gesture `Ctrl` + `F7`. (`Command` + `F7` on Apple devices.) */
+    CtrlF7 = "Ctrl F7",
+    /** The keystroke gesture `Ctrl` + `F8`. (`Command` + `F8` on Apple devices.) */
+    CtrlF8 = "Ctrl F8",
+    /** The keystroke gesture `Ctrl` + `F9`. (`Command` + `F9` on Apple devices.) */
+    CtrlF9 = "Ctrl F9",
+    /** The keystroke gesture `Ctrl` + `F10`. (`Command` + `F10` on Apple devices.) */
+    CtrlF10 = "Ctrl F10",
+    /** The keystroke gesture `Ctrl` + `F11`. (`Command` + `F11` on Apple devices.) */
+    CtrlF11 = "Ctrl F11",
+    /** The keystroke gesture `Ctrl` + `F12`. (`Command` + `F12` on Apple devices.) */
+    CtrlF12 = "Ctrl F12",
+    /** The keystroke gesture `Ctrl` + `Escape`. (`Command` + `Escape` on Apple devices.) */
+    CtrlEscape = "Ctrl Escape",
+    /** The keystroke gesture `Ctrl` + `Insert`. (`Command` + `Insert` on Apple devices.) */
+    CtrlInsert = "Ctrl Insert",
+    /** The keystroke gesture `Ctrl` + `Delete`. (`Command` + `Delete` on Apple devices.) */
+    CtrlDelete = "Ctrl Delete",
+    /** The keystroke gesture `Ctrl` + `Backspace`. (`Command` + `Backspace` on Apple devices.) */
+    CtrlBackspace = "Ctrl Backspace",
+    /** The keystroke gesture `Ctrl` + `Home`. (`Command` + `Home` on Apple devices.) */
+    CtrlHome = "Ctrl Home",
+    /** The keystroke gesture `Ctrl` + `End`. (`Command` + `End` on Apple devices.) */
+    CtrlEnd = "Ctrl End",
+    /** The keystroke gesture `Ctrl` + `Page Up`. (`Command` + `Page Up` on Apple devices.) */
+    CtrlPageUp = "Ctrl PageUp",
+    /** The keystroke gesture `Ctrl` + `Page Down`. (`Command` + `Page Down` on Apple devices.) */
+    CtrlPageDown = "Ctrl PageDown",
+    /** The keystroke gesture `Ctrl` + `Up`. (`Command` + `Up` on Apple devices.) */
+    CtrlArrowUp = "Ctrl ArrowUp",
+    /** The keystroke gesture `Ctrl` + `Down`. (`Command` + `Down` on Apple devices.) */
+    CtrlArrowDown = "Ctrl ArrowDown",
+    /** The keystroke gesture `Ctrl` + `Left`. (`Command` + `Left` on Apple devices.) */
+    CtrlArrowLeft = "Ctrl ArrowLeft",
+    /** The keystroke gesture `Ctrl` + `Right`. (`Command` + `Right` on Apple devices.) */
+    CtrlArrowRight = "Ctrl ArrowRight",
+    /** The keystroke gesture `Ctrl` + `Enter`. (`Command` + `Enter` on Apple devices.) */
+    CtrlEnter = "Ctrl Enter",
+    /** The keystroke gesture `Ctrl` + `Menu Key`. (`Command` + `Menu Key` on Apple devices.) */
+    CtrlMenuKey = "Ctrl MenuKey",
+    /** The keystroke gesture `Alt` + `A`. (`Option` + `A` on Apple devices.) */
+    AltA = "Alt A",
+    /** The keystroke gesture `Alt` + `B`. (`Option` + `B` on Apple devices.) */
+    AltB = "Alt B",
+    /** The keystroke gesture `Alt` + `C`. (`Option` + `C` on Apple devices.) */
+    AltC = "Alt C",
+    /** The keystroke gesture `Alt` + `D`. (`Option` + `D` on Apple devices.) */
+    AltD = "Alt D",
+    /** The keystroke gesture `Alt` + `E`. (`Option` + `E` on Apple devices.) */
+    AltE = "Alt E",
+    /** The keystroke gesture `Alt` + `F`. (`Option` + `F` on Apple devices.) */
+    AltF = "Alt F",
+    /** The keystroke gesture `Alt` + `G`. (`Option` + `G` on Apple devices.) */
+    AltG = "Alt G",
+    /** The keystroke gesture `Alt` + `H`. (`Option` + `H` on Apple devices.) */
+    AltH = "Alt H",
+    /** The keystroke gesture `Alt` + `I`. (`Option` + `I` on Apple devices.) */
+    AltI = "Alt I",
+    /** The keystroke gesture `Alt` + `J`. (`Option` + `J` on Apple devices.) */
+    AltJ = "Alt J",
+    /** The keystroke gesture `Alt` + `K`. (`Option` + `K` on Apple devices.) */
+    AltK = "Alt K",
+    /** The keystroke gesture `Alt` + `L`. (`Option` + `L` on Apple devices.) */
+    AltL = "Alt L",
+    /** The keystroke gesture `Alt` + `M`. (`Option` + `M` on Apple devices.) */
+    AltM = "Alt M",
+    /** The keystroke gesture `Alt` + `N`. (`Option` + `N` on Apple devices.) */
+    AltN = "Alt N",
+    /** The keystroke gesture `Alt` + `O`. (`Option` + `O` on Apple devices.) */
+    AltO = "Alt O",
+    /** The keystroke gesture `Alt` + `P`. (`Option` + `P` on Apple devices.) */
+    AltP = "Alt P",
+    /** The keystroke gesture `Alt` + `Q`. (`Option` + `Q` on Apple devices.) */
+    AltQ = "Alt Q",
+    /** The keystroke gesture `Alt` + `R`. (`Option` + `R` on Apple devices.) */
+    AltR = "Alt R",
+    /** The keystroke gesture `Alt` + `S`. (`Option` + `S` on Apple devices.) */
+    AltS = "Alt S",
+    /** The keystroke gesture `Alt` + `T`. (`Option` + `T` on Apple devices.) */
+    AltT = "Alt T",
+    /** The keystroke gesture `Alt` + `U`. (`Option` + `U` on Apple devices.) */
+    AltU = "Alt U",
+    /** The keystroke gesture `Alt` + `V`. (`Option` + `V` on Apple devices.) */
+    AltV = "Alt V",
+    /** The keystroke gesture `Alt` + `W`. (`Option` + `W` on Apple devices.) */
+    AltW = "Alt W",
+    /** The keystroke gesture `Alt` + `X`. (`Option` + `X` on Apple devices.) */
+    AltX = "Alt X",
+    /** The keystroke gesture `Alt` + `Y`. (`Option` + `Y` on Apple devices.) */
+    AltY = "Alt Y",
+    /** The keystroke gesture `Alt` + `Z`. (`Option` + `Z` on Apple devices.) */
+    AltZ = "Alt Z",
+    /** The keystroke gesture `Alt` + `0`. (`Option` + `0` on Apple devices.) */
+    Alt0 = "Alt num0",
+    /** The keystroke gesture `Alt` + `1`. (`Option` + `1` on Apple devices.) */
+    Alt1 = "Alt num1",
+    /** The keystroke gesture `Alt` + `2`. (`Option` + `2` on Apple devices.) */
+    Alt2 = "Alt num2",
+    /** The keystroke gesture `Alt` + `3`. (`Option` + `3` on Apple devices.) */
+    Alt3 = "Alt num3",
+    /** The keystroke gesture `Alt` + `4`. (`Option` + `4` on Apple devices.) */
+    Alt4 = "Alt num4",
+    /** The keystroke gesture `Alt` + `5`. (`Option` + `5` on Apple devices.) */
+    Alt5 = "Alt num5",
+    /** The keystroke gesture `Alt` + `6`. (`Option` + `6` on Apple devices.) */
+    Alt6 = "Alt num6",
+    /** The keystroke gesture `Alt` + `7`. (`Option` + `7` on Apple devices.) */
+    Alt7 = "Alt num7",
+    /** The keystroke gesture `Alt` + `8`. (`Option` + `8` on Apple devices.) */
+    Alt8 = "Alt num8",
+    /** The keystroke gesture `Alt` + `9`. (`Option` + `9` on Apple devices.) */
+    Alt9 = "Alt num9",
+    /** The keystroke gesture `Alt` + `Space`. (`Option` + `Space` on Apple devices.) */
+    AltSpace = "Alt Space",
+    /** The keystroke gesture `Alt` + `Slash`. (`Option` + `Slash` on Apple devices.) */
+    AltSlash = "Alt Slash",
+    /** The keystroke gesture `Alt` + `Comma`. (`Option` + `Comma` on Apple devices.) */
+    AltComma = "Alt Comma",
+    /** The keystroke gesture `Alt` + `Period`. (`Option` + `Period` on Apple devices.) */
+    AltPeriod = "Alt Period",
+    /** The keystroke gesture `Alt` + `Minus`. (`Option` + `Minus` on Apple devices.) */
+    AltMinus = "Alt Minus",
+    /** The keystroke gesture `Alt` + `Equals`. (`Option` + `Equals` on Apple devices.) */
+    AltEquals = "Alt Equals",
+    /** The keystroke gesture `Alt` + `Bracket Left`. (`Option` + `Bracket Left` on Apple devices.) */
+    AltBracketLeft = "Alt BracketLeft",
+    /** The keystroke gesture `Alt` + `Bracket Right`. (`Option` + `Bracket Right` on Apple devices.) */
+    AltBracketRight = "Alt BracketRight",
+    /** The keystroke gesture `Alt` + `F1`. (`Option` + `F1` on Apple devices.) */
+    AltF1 = "Alt F1",
+    /** The keystroke gesture `Alt` + `F2`. (`Option` + `F2` on Apple devices.) */
+    AltF2 = "Alt F2",
+    /** The keystroke gesture `Alt` + `F3`. (`Option` + `F3` on Apple devices.) */
+    AltF3 = "Alt F3",
+    /** The keystroke gesture `Alt` + `F4`. (`Option` + `F4` on Apple devices.) */
+    AltF4 = "Alt F4",
+    /** The keystroke gesture `Alt` + `F5`. (`Option` + `F5` on Apple devices.) */
+    AltF5 = "Alt F5",
+    /** The keystroke gesture `Alt` + `F6`. (`Option` + `F6` on Apple devices.) */
+    AltF6 = "Alt F6",
+    /** The keystroke gesture `Alt` + `F7`. (`Option` + `F7` on Apple devices.) */
+    AltF7 = "Alt F7",
+    /** The keystroke gesture `Alt` + `F8`. (`Option` + `F8` on Apple devices.) */
+    AltF8 = "Alt F8",
+    /** The keystroke gesture `Alt` + `F9`. (`Option` + `F9` on Apple devices.) */
+    AltF9 = "Alt F9",
+    /** The keystroke gesture `Alt` + `F10`. (`Option` + `F10` on Apple devices.) */
+    AltF10 = "Alt F10",
+    /** The keystroke gesture `Alt` + `F11`. (`Option` + `F11` on Apple devices.) */
+    AltF11 = "Alt F11",
+    /** The keystroke gesture `Alt` + `F12`. (`Option` + `F12` on Apple devices.) */
+    AltF12 = "Alt F12",
+    /** The keystroke gesture `Alt` + `Escape`. (`Option` + `Escape` on Apple devices.) */
+    AltEscape = "Alt Escape",
+    /** The keystroke gesture `Alt` + `Insert`. (`Option` + `Insert` on Apple devices.) */
+    AltInsert = "Alt Insert",
+    /** The keystroke gesture `Alt` + `Delete`. (`Option` + `Delete` on Apple devices.) */
+    AltDelete = "Alt Delete",
+    /** The keystroke gesture `Alt` + `Backspace`. (`Option` + `Backspace` on Apple devices.) */
+    AltBackspace = "Alt Backspace",
+    /** The keystroke gesture `Alt` + `Home`. (`Option` + `Home` on Apple devices.) */
+    AltHome = "Alt Home",
+    /** The keystroke gesture `Alt` + `End`. (`Option` + `End` on Apple devices.) */
+    AltEnd = "Alt End",
+    /** The keystroke gesture `Alt` + `Page Up`. (`Option` + `Page Up` on Apple devices.) */
+    AltPageUp = "Alt PageUp",
+    /** The keystroke gesture `Alt` + `Page Down`. (`Option` + `Page Down` on Apple devices.) */
+    AltPageDown = "Alt PageDown",
+    /** The keystroke gesture `Alt` + `Up`. (`Option` + `Up` on Apple devices.) */
+    AltArrowUp = "Alt ArrowUp",
+    /** The keystroke gesture `Alt` + `Down`. (`Option` + `Down` on Apple devices.) */
+    AltArrowDown = "Alt ArrowDown",
+    /** The keystroke gesture `Alt` + `Left`. (`Option` + `Left` on Apple devices.) */
+    AltArrowLeft = "Alt ArrowLeft",
+    /** The keystroke gesture `Alt` + `Right`. (`Option` + `Right` on Apple devices.) */
+    AltArrowRight = "Alt ArrowRight",
+    /** The keystroke gesture `Alt` + `Enter`. (`Option` + `Enter` on Apple devices.) */
+    AltEnter = "Alt Enter",
+    /** The keystroke gesture `Alt` + `Menu Key`. (`Option` + `Menu Key` on Apple devices.) */
+    AltMenuKey = "Alt MenuKey",
+    /** The keystroke gesture `Ctrl` + `Shift` + `A`. (`Command` + `Shift` + `A` on Apple devices.) */
+    CtrlShiftA = "CtrlShift A",
+    /** The keystroke gesture `Ctrl` + `Shift` + `B`. (`Command` + `Shift` + `B` on Apple devices.) */
+    CtrlShiftB = "CtrlShift B",
+    /** The keystroke gesture `Ctrl` + `Shift` + `C`. (`Command` + `Shift` + `C` on Apple devices.) */
+    CtrlShiftC = "CtrlShift C",
+    /** The keystroke gesture `Ctrl` + `Shift` + `D`. (`Command` + `Shift` + `D` on Apple devices.) */
+    CtrlShiftD = "CtrlShift D",
+    /** The keystroke gesture `Ctrl` + `Shift` + `E`. (`Command` + `Shift` + `E` on Apple devices.) */
+    CtrlShiftE = "CtrlShift E",
+    /** The keystroke gesture `Ctrl` + `Shift` + `F`. (`Command` + `Shift` + `F` on Apple devices.) */
+    CtrlShiftF = "CtrlShift F",
+    /** The keystroke gesture `Ctrl` + `Shift` + `G`. (`Command` + `Shift` + `G` on Apple devices.) */
+    CtrlShiftG = "CtrlShift G",
+    /** The keystroke gesture `Ctrl` + `Shift` + `H`. (`Command` + `Shift` + `H` on Apple devices.) */
+    CtrlShiftH = "CtrlShift H",
+    /** The keystroke gesture `Ctrl` + `Shift` + `I`. (`Command` + `Shift` + `I` on Apple devices.) */
+    CtrlShiftI = "CtrlShift I",
+    /** The keystroke gesture `Ctrl` + `Shift` + `J`. (`Command` + `Shift` + `J` on Apple devices.) */
+    CtrlShiftJ = "CtrlShift J",
+    /** The keystroke gesture `Ctrl` + `Shift` + `K`. (`Command` + `Shift` + `K` on Apple devices.) */
+    CtrlShiftK = "CtrlShift K",
+    /** The keystroke gesture `Ctrl` + `Shift` + `L`. (`Command` + `Shift` + `L` on Apple devices.) */
+    CtrlShiftL = "CtrlShift L",
+    /** The keystroke gesture `Ctrl` + `Shift` + `M`. (`Command` + `Shift` + `M` on Apple devices.) */
+    CtrlShiftM = "CtrlShift M",
+    /** The keystroke gesture `Ctrl` + `Shift` + `N`. (`Command` + `Shift` + `N` on Apple devices.) */
+    CtrlShiftN = "CtrlShift N",
+    /** The keystroke gesture `Ctrl` + `Shift` + `O`. (`Command` + `Shift` + `O` on Apple devices.) */
+    CtrlShiftO = "CtrlShift O",
+    /** The keystroke gesture `Ctrl` + `Shift` + `P`. (`Command` + `Shift` + `P` on Apple devices.) */
+    CtrlShiftP = "CtrlShift P",
+    /** The keystroke gesture `Ctrl` + `Shift` + `Q`. (`Command` + `Shift` + `Q` on Apple devices.) */
+    CtrlShiftQ = "CtrlShift Q",
+    /** The keystroke gesture `Ctrl` + `Shift` + `R`. (`Command` + `Shift` + `R` on Apple devices.) */
+    CtrlShiftR = "CtrlShift R",
+    /** The keystroke gesture `Ctrl` + `Shift` + `S`. (`Command` + `Shift` + `S` on Apple devices.) */
+    CtrlShiftS = "CtrlShift S",
+    /** The keystroke gesture `Ctrl` + `Shift` + `T`. (`Command` + `Shift` + `T` on Apple devices.) */
+    CtrlShiftT = "CtrlShift T",
+    /** The keystroke gesture `Ctrl` + `Shift` + `U`. (`Command` + `Shift` + `U` on Apple devices.) */
+    CtrlShiftU = "CtrlShift U",
+    /** The keystroke gesture `Ctrl` + `Shift` + `V`. (`Command` + `Shift` + `V` on Apple devices.) */
+    CtrlShiftV = "CtrlShift V",
+    /** The keystroke gesture `Ctrl` + `Shift` + `W`. (`Command` + `Shift` + `W` on Apple devices.) */
+    CtrlShiftW = "CtrlShift W",
+    /** The keystroke gesture `Ctrl` + `Shift` + `X`. (`Command` + `Shift` + `X` on Apple devices.) */
+    CtrlShiftX = "CtrlShift X",
+    /** The keystroke gesture `Ctrl` + `Shift` + `Y`. (`Command` + `Shift` + `Y` on Apple devices.) */
+    CtrlShiftY = "CtrlShift Y",
+    /** The keystroke gesture `Ctrl` + `Shift` + `Z`. (`Command` + `Shift` + `Z` on Apple devices.) */
+    CtrlShiftZ = "CtrlShift Z",
+    /** The keystroke gesture `Ctrl` + `Shift` + `0`. (`Command` + `Shift` + `0` on Apple devices.) */
+    CtrlShift0 = "CtrlShift num0",
+    /** The keystroke gesture `Ctrl` + `Shift` + `1`. (`Command` + `Shift` + `1` on Apple devices.) */
+    CtrlShift1 = "CtrlShift num1",
+    /** The keystroke gesture `Ctrl` + `Shift` + `2`. (`Command` + `Shift` + `2` on Apple devices.) */
+    CtrlShift2 = "CtrlShift num2",
+    /** The keystroke gesture `Ctrl` + `Shift` + `3`. (`Command` + `Shift` + `3` on Apple devices.) */
+    CtrlShift3 = "CtrlShift num3",
+    /** The keystroke gesture `Ctrl` + `Shift` + `4`. (`Command` + `Shift` + `4` on Apple devices.) */
+    CtrlShift4 = "CtrlShift num4",
+    /** The keystroke gesture `Ctrl` + `Shift` + `5`. (`Command` + `Shift` + `5` on Apple devices.) */
+    CtrlShift5 = "CtrlShift num5",
+    /** The keystroke gesture `Ctrl` + `Shift` + `6`. (`Command` + `Shift` + `6` on Apple devices.) */
+    CtrlShift6 = "CtrlShift num6",
+    /** The keystroke gesture `Ctrl` + `Shift` + `7`. (`Command` + `Shift` + `7` on Apple devices.) */
+    CtrlShift7 = "CtrlShift num7",
+    /** The keystroke gesture `Ctrl` + `Shift` + `8`. (`Command` + `Shift` + `8` on Apple devices.) */
+    CtrlShift8 = "CtrlShift num8",
+    /** The keystroke gesture `Ctrl` + `Shift` + `9`. (`Command` + `Shift` + `9` on Apple devices.) */
+    CtrlShift9 = "CtrlShift num9",
+    /** The keystroke gesture `Ctrl` + `Shift` + `Space`. (`Command` + `Shift` + `Space` on Apple devices.) */
+    CtrlShiftSpace = "CtrlShift Space",
+    /** The keystroke gesture `Ctrl` + `Shift` + `Slash`. (`Command` + `Shift` + `Slash` on Apple devices.) */
+    CtrlShiftSlash = "CtrlShift Slash",
+    /** The keystroke gesture `Ctrl` + `Shift` + `Comma`. (`Command` + `Shift` + `Comma` on Apple devices.) */
+    CtrlShiftComma = "CtrlShift Comma",
+    /** The keystroke gesture `Ctrl` + `Shift` + `Period`. (`Command` + `Shift` + `Period` on Apple devices.) */
+    CtrlShiftPeriod = "CtrlShift Period",
+    /** The keystroke gesture `Ctrl` + `Shift` + `Minus`. (`Command` + `Shift` + `Minus` on Apple devices.) */
+    CtrlShiftMinus = "CtrlShift Minus",
+    /** The keystroke gesture `Ctrl` + `Shift` + `Equals`. (`Command` + `Shift` + `Equals` on Apple devices.) */
+    CtrlShiftEquals = "CtrlShift Equals",
+    /** The keystroke gesture `Ctrl` + `Shift` + `Bracket Left`. (`Command` + `Shift` + `Bracket Left` on Apple devices.) */
+    CtrlShiftBracketLeft = "CtrlShift BracketLeft",
+    /** The keystroke gesture `Ctrl` + `Shift` + `Bracket Right`. (`Command` + `Shift` + `Bracket Right` on Apple devices.) */
+    CtrlShiftBracketRight = "CtrlShift BracketRight",
+    /** The keystroke gesture `Ctrl` + `Shift` + `F1`. (`Command` + `Shift` + `F1` on Apple devices.) */
+    CtrlShiftF1 = "CtrlShift F1",
+    /** The keystroke gesture `Ctrl` + `Shift` + `F2`. (`Command` + `Shift` + `F2` on Apple devices.) */
+    CtrlShiftF2 = "CtrlShift F2",
+    /** The keystroke gesture `Ctrl` + `Shift` + `F3`. (`Command` + `Shift` + `F3` on Apple devices.) */
+    CtrlShiftF3 = "CtrlShift F3",
+    /** The keystroke gesture `Ctrl` + `Shift` + `F4`. (`Command` + `Shift` + `F4` on Apple devices.) */
+    CtrlShiftF4 = "CtrlShift F4",
+    /** The keystroke gesture `Ctrl` + `Shift` + `F5`. (`Command` + `Shift` + `F5` on Apple devices.) */
+    CtrlShiftF5 = "CtrlShift F5",
+    /** The keystroke gesture `Ctrl` + `Shift` + `F6`. (`Command` + `Shift` + `F6` on Apple devices.) */
+    CtrlShiftF6 = "CtrlShift F6",
+    /** The keystroke gesture `Ctrl` + `Shift` + `F7`. (`Command` + `Shift` + `F7` on Apple devices.) */
+    CtrlShiftF7 = "CtrlShift F7",
+    /** The keystroke gesture `Ctrl` + `Shift` + `F8`. (`Command` + `Shift` + `F8` on Apple devices.) */
+    CtrlShiftF8 = "CtrlShift F8",
+    /** The keystroke gesture `Ctrl` + `Shift` + `F9`. (`Command` + `Shift` + `F9` on Apple devices.) */
+    CtrlShiftF9 = "CtrlShift F9",
+    /** The keystroke gesture `Ctrl` + `Shift` + `F10`. (`Command` + `Shift` + `F10` on Apple devices.) */
+    CtrlShiftF10 = "CtrlShift F10",
+    /** The keystroke gesture `Ctrl` + `Shift` + `F11`. (`Command` + `Shift` + `F11` on Apple devices.) */
+    CtrlShiftF11 = "CtrlShift F11",
+    /** The keystroke gesture `Ctrl` + `Shift` + `F12`. (`Command` + `Shift` + `F12` on Apple devices.) */
+    CtrlShiftF12 = "CtrlShift F12",
+    /** The keystroke gesture `Ctrl` + `Shift` + `Escape`. (`Command` + `Shift` + `Escape` on Apple devices.) */
+    CtrlShiftEscape = "CtrlShift Escape",
+    /** The keystroke gesture `Ctrl` + `Shift` + `Insert`. (`Command` + `Shift` + `Insert` on Apple devices.) */
+    CtrlShiftInsert = "CtrlShift Insert",
+    /** The keystroke gesture `Ctrl` + `Shift` + `Delete`. (`Command` + `Shift` + `Delete` on Apple devices.) */
+    CtrlShiftDelete = "CtrlShift Delete",
+    /** The keystroke gesture `Ctrl` + `Shift` + `Backspace`. (`Command` + `Shift` + `Backspace` on Apple devices.) */
+    CtrlShiftBackspace = "CtrlShift Backspace",
+    /** The keystroke gesture `Ctrl` + `Shift` + `Home`. (`Command` + `Shift` + `Home` on Apple devices.) */
+    CtrlShiftHome = "CtrlShift Home",
+    /** The keystroke gesture `Ctrl` + `Shift` + `End`. (`Command` + `Shift` + `End` on Apple devices.) */
+    CtrlShiftEnd = "CtrlShift End",
+    /** The keystroke gesture `Ctrl` + `Shift` + `Page Up`. (`Command` + `Shift` + `Page Up` on Apple devices.) */
+    CtrlShiftPageUp = "CtrlShift PageUp",
+    /** The keystroke gesture `Ctrl` + `Shift` + `Page Down`. (`Command` + `Shift` + `Page Down` on Apple devices.) */
+    CtrlShiftPageDown = "CtrlShift PageDown",
+    /** The keystroke gesture `Ctrl` + `Shift` + `Up`. (`Command` + `Shift` + `Up` on Apple devices.) */
+    CtrlShiftArrowUp = "CtrlShift ArrowUp",
+    /** The keystroke gesture `Ctrl` + `Shift` + `Down`. (`Command` + `Shift` + `Down` on Apple devices.) */
+    CtrlShiftArrowDown = "CtrlShift ArrowDown",
+    /** The keystroke gesture `Ctrl` + `Shift` + `Left`. (`Command` + `Shift` + `Left` on Apple devices.) */
+    CtrlShiftArrowLeft = "CtrlShift ArrowLeft",
+    /** The keystroke gesture `Ctrl` + `Shift` + `Right`. (`Command` + `Shift` + `Right` on Apple devices.) */
+    CtrlShiftArrowRight = "CtrlShift ArrowRight",
+    /** The keystroke gesture `Ctrl` + `Shift` + `Enter`. (`Command` + `Shift` + `Enter` on Apple devices.) */
+    CtrlShiftEnter = "CtrlShift Enter",
+    /** The keystroke gesture `Ctrl` + `Shift` + `Menu Key`. (`Command` + `Shift` + `Menu Key` on Apple devices.) */
+    CtrlShiftMenuKey = "CtrlShift MenuKey",
+    /** The keystroke gesture `Alt` + `Shift` + `A`. (`Option` + `Shift` + `A` on Apple devices.) */
+    AltShiftA = "AltShift A",
+    /** The keystroke gesture `Alt` + `Shift` + `B`. (`Option` + `Shift` + `B` on Apple devices.) */
+    AltShiftB = "AltShift B",
+    /** The keystroke gesture `Alt` + `Shift` + `C`. (`Option` + `Shift` + `C` on Apple devices.) */
+    AltShiftC = "AltShift C",
+    /** The keystroke gesture `Alt` + `Shift` + `D`. (`Option` + `Shift` + `D` on Apple devices.) */
+    AltShiftD = "AltShift D",
+    /** The keystroke gesture `Alt` + `Shift` + `E`. (`Option` + `Shift` + `E` on Apple devices.) */
+    AltShiftE = "AltShift E",
+    /** The keystroke gesture `Alt` + `Shift` + `F`. (`Option` + `Shift` + `F` on Apple devices.) */
+    AltShiftF = "AltShift F",
+    /** The keystroke gesture `Alt` + `Shift` + `G`. (`Option` + `Shift` + `G` on Apple devices.) */
+    AltShiftG = "AltShift G",
+    /** The keystroke gesture `Alt` + `Shift` + `H`. (`Option` + `Shift` + `H` on Apple devices.) */
+    AltShiftH = "AltShift H",
+    /** The keystroke gesture `Alt` + `Shift` + `I`. (`Option` + `Shift` + `I` on Apple devices.) */
+    AltShiftI = "AltShift I",
+    /** The keystroke gesture `Alt` + `Shift` + `J`. (`Option` + `Shift` + `J` on Apple devices.) */
+    AltShiftJ = "AltShift J",
+    /** The keystroke gesture `Alt` + `Shift` + `K`. (`Option` + `Shift` + `K` on Apple devices.) */
+    AltShiftK = "AltShift K",
+    /** The keystroke gesture `Alt` + `Shift` + `L`. (`Option` + `Shift` + `L` on Apple devices.) */
+    AltShiftL = "AltShift L",
+    /** The keystroke gesture `Alt` + `Shift` + `M`. (`Option` + `Shift` + `M` on Apple devices.) */
+    AltShiftM = "AltShift M",
+    /** The keystroke gesture `Alt` + `Shift` + `N`. (`Option` + `Shift` + `N` on Apple devices.) */
+    AltShiftN = "AltShift N",
+    /** The keystroke gesture `Alt` + `Shift` + `O`. (`Option` + `Shift` + `O` on Apple devices.) */
+    AltShiftO = "AltShift O",
+    /** The keystroke gesture `Alt` + `Shift` + `P`. (`Option` + `Shift` + `P` on Apple devices.) */
+    AltShiftP = "AltShift P",
+    /** The keystroke gesture `Alt` + `Shift` + `Q`. (`Option` + `Shift` + `Q` on Apple devices.) */
+    AltShiftQ = "AltShift Q",
+    /** The keystroke gesture `Alt` + `Shift` + `R`. (`Option` + `Shift` + `R` on Apple devices.) */
+    AltShiftR = "AltShift R",
+    /** The keystroke gesture `Alt` + `Shift` + `S`. (`Option` + `Shift` + `S` on Apple devices.) */
+    AltShiftS = "AltShift S",
+    /** The keystroke gesture `Alt` + `Shift` + `T`. (`Option` + `Shift` + `T` on Apple devices.) */
+    AltShiftT = "AltShift T",
+    /** The keystroke gesture `Alt` + `Shift` + `U`. (`Option` + `Shift` + `U` on Apple devices.) */
+    AltShiftU = "AltShift U",
+    /** The keystroke gesture `Alt` + `Shift` + `V`. (`Option` + `Shift` + `V` on Apple devices.) */
+    AltShiftV = "AltShift V",
+    /** The keystroke gesture `Alt` + `Shift` + `W`. (`Option` + `Shift` + `W` on Apple devices.) */
+    AltShiftW = "AltShift W",
+    /** The keystroke gesture `Alt` + `Shift` + `X`. (`Option` + `Shift` + `X` on Apple devices.) */
+    AltShiftX = "AltShift X",
+    /** The keystroke gesture `Alt` + `Shift` + `Y`. (`Option` + `Shift` + `Y` on Apple devices.) */
+    AltShiftY = "AltShift Y",
+    /** The keystroke gesture `Alt` + `Shift` + `Z`. (`Option` + `Shift` + `Z` on Apple devices.) */
+    AltShiftZ = "AltShift Z",
+    /** The keystroke gesture `Alt` + `Shift` + `0`. (`Option` + `Shift` + `0` on Apple devices.) */
+    AltShift0 = "AltShift num0",
+    /** The keystroke gesture `Alt` + `Shift` + `1`. (`Option` + `Shift` + `1` on Apple devices.) */
+    AltShift1 = "AltShift num1",
+    /** The keystroke gesture `Alt` + `Shift` + `2`. (`Option` + `Shift` + `2` on Apple devices.) */
+    AltShift2 = "AltShift num2",
+    /** The keystroke gesture `Alt` + `Shift` + `3`. (`Option` + `Shift` + `3` on Apple devices.) */
+    AltShift3 = "AltShift num3",
+    /** The keystroke gesture `Alt` + `Shift` + `4`. (`Option` + `Shift` + `4` on Apple devices.) */
+    AltShift4 = "AltShift num4",
+    /** The keystroke gesture `Alt` + `Shift` + `5`. (`Option` + `Shift` + `5` on Apple devices.) */
+    AltShift5 = "AltShift num5",
+    /** The keystroke gesture `Alt` + `Shift` + `6`. (`Option` + `Shift` + `6` on Apple devices.) */
+    AltShift6 = "AltShift num6",
+    /** The keystroke gesture `Alt` + `Shift` + `7`. (`Option` + `Shift` + `7` on Apple devices.) */
+    AltShift7 = "AltShift num7",
+    /** The keystroke gesture `Alt` + `Shift` + `8`. (`Option` + `Shift` + `8` on Apple devices.) */
+    AltShift8 = "AltShift num8",
+    /** The keystroke gesture `Alt` + `Shift` + `9`. (`Option` + `Shift` + `9` on Apple devices.) */
+    AltShift9 = "AltShift num9",
+    /** The keystroke gesture `Alt` + `Shift` + `Space`. (`Option` + `Shift` + `Space` on Apple devices.) */
+    AltShiftSpace = "AltShift Space",
+    /** The keystroke gesture `Alt` + `Shift` + `Slash`. (`Option` + `Shift` + `Slash` on Apple devices.) */
+    AltShiftSlash = "AltShift Slash",
+    /** The keystroke gesture `Alt` + `Shift` + `Comma`. (`Option` + `Shift` + `Comma` on Apple devices.) */
+    AltShiftComma = "AltShift Comma",
+    /** The keystroke gesture `Alt` + `Shift` + `Period`. (`Option` + `Shift` + `Period` on Apple devices.) */
+    AltShiftPeriod = "AltShift Period",
+    /** The keystroke gesture `Alt` + `Shift` + `Minus`. (`Option` + `Shift` + `Minus` on Apple devices.) */
+    AltShiftMinus = "AltShift Minus",
+    /** The keystroke gesture `Alt` + `Shift` + `Equals`. (`Option` + `Shift` + `Equals` on Apple devices.) */
+    AltShiftEquals = "AltShift Equals",
+    /** The keystroke gesture `Alt` + `Shift` + `Bracket Left`. (`Option` + `Shift` + `Bracket Left` on Apple devices.) */
+    AltShiftBracketLeft = "AltShift BracketLeft",
+    /** The keystroke gesture `Alt` + `Shift` + `Bracket Right`. (`Option` + `Shift` + `Bracket Right` on Apple devices.) */
+    AltShiftBracketRight = "AltShift BracketRight",
+    /** The keystroke gesture `Alt` + `Shift` + `F1`. (`Option` + `Shift` + `F1` on Apple devices.) */
+    AltShiftF1 = "AltShift F1",
+    /** The keystroke gesture `Alt` + `Shift` + `F2`. (`Option` + `Shift` + `F2` on Apple devices.) */
+    AltShiftF2 = "AltShift F2",
+    /** The keystroke gesture `Alt` + `Shift` + `F3`. (`Option` + `Shift` + `F3` on Apple devices.) */
+    AltShiftF3 = "AltShift F3",
+    /** The keystroke gesture `Alt` + `Shift` + `F4`. (`Option` + `Shift` + `F4` on Apple devices.) */
+    AltShiftF4 = "AltShift F4",
+    /** The keystroke gesture `Alt` + `Shift` + `F5`. (`Option` + `Shift` + `F5` on Apple devices.) */
+    AltShiftF5 = "AltShift F5",
+    /** The keystroke gesture `Alt` + `Shift` + `F6`. (`Option` + `Shift` + `F6` on Apple devices.) */
+    AltShiftF6 = "AltShift F6",
+    /** The keystroke gesture `Alt` + `Shift` + `F7`. (`Option` + `Shift` + `F7` on Apple devices.) */
+    AltShiftF7 = "AltShift F7",
+    /** The keystroke gesture `Alt` + `Shift` + `F8`. (`Option` + `Shift` + `F8` on Apple devices.) */
+    AltShiftF8 = "AltShift F8",
+    /** The keystroke gesture `Alt` + `Shift` + `F9`. (`Option` + `Shift` + `F9` on Apple devices.) */
+    AltShiftF9 = "AltShift F9",
+    /** The keystroke gesture `Alt` + `Shift` + `F10`. (`Option` + `Shift` + `F10` on Apple devices.) */
+    AltShiftF10 = "AltShift F10",
+    /** The keystroke gesture `Alt` + `Shift` + `F11`. (`Option` + `Shift` + `F11` on Apple devices.) */
+    AltShiftF11 = "AltShift F11",
+    /** The keystroke gesture `Alt` + `Shift` + `F12`. (`Option` + `Shift` + `F12` on Apple devices.) */
+    AltShiftF12 = "AltShift F12",
+    /** The keystroke gesture `Alt` + `Shift` + `Escape`. (`Option` + `Shift` + `Escape` on Apple devices.) */
+    AltShiftEscape = "AltShift Escape",
+    /** The keystroke gesture `Alt` + `Shift` + `Insert`. (`Option` + `Shift` + `Insert` on Apple devices.) */
+    AltShiftInsert = "AltShift Insert",
+    /** The keystroke gesture `Alt` + `Shift` + `Delete`. (`Option` + `Shift` + `Delete` on Apple devices.) */
+    AltShiftDelete = "AltShift Delete",
+    /** The keystroke gesture `Alt` + `Shift` + `Backspace`. (`Option` + `Shift` + `Backspace` on Apple devices.) */
+    AltShiftBackspace = "AltShift Backspace",
+    /** The keystroke gesture `Alt` + `Shift` + `Home`. (`Option` + `Shift` + `Home` on Apple devices.) */
+    AltShiftHome = "AltShift Home",
+    /** The keystroke gesture `Alt` + `Shift` + `End`. (`Option` + `Shift` + `End` on Apple devices.) */
+    AltShiftEnd = "AltShift End",
+    /** The keystroke gesture `Alt` + `Shift` + `Page Up`. (`Option` + `Shift` + `Page Up` on Apple devices.) */
+    AltShiftPageUp = "AltShift PageUp",
+    /** The keystroke gesture `Alt` + `Shift` + `Page Down`. (`Option` + `Shift` + `Page Down` on Apple devices.) */
+    AltShiftPageDown = "AltShift PageDown",
+    /** The keystroke gesture `Alt` + `Shift` + `Up`. (`Option` + `Shift` + `Up` on Apple devices.) */
+    AltShiftArrowUp = "AltShift ArrowUp",
+    /** The keystroke gesture `Alt` + `Shift` + `Down`. (`Option` + `Shift` + `Down` on Apple devices.) */
+    AltShiftArrowDown = "AltShift ArrowDown",
+    /** The keystroke gesture `Alt` + `Shift` + `Left`. (`Option` + `Shift` + `Left` on Apple devices.) */
+    AltShiftArrowLeft = "AltShift ArrowLeft",
+    /** The keystroke gesture `Alt` + `Shift` + `Right`. (`Option` + `Shift` + `Right` on Apple devices.) */
+    AltShiftArrowRight = "AltShift ArrowRight",
+    /** The keystroke gesture `Alt` + `Shift` + `Enter`. (`Option` + `Shift` + `Enter` on Apple devices.) */
+    AltShiftEnter = "AltShift Enter",
+    /** The keystroke gesture `Alt` + `Shift` + `Menu Key`. (`Option` + `Shift` + `Menu Key` on Apple devices.) */
+    AltShiftMenuKey = "AltShift MenuKey"
+  }
+
+
+  /** Any of the subset of editor commands that inserts an object into the editor. */
+  type EditorObject = MathObject | keyof typeof MathObject | ChemistryObject | keyof typeof ChemistryObject;
+
   /**
    * An immutable representation of a colour in the sRGB (Standard Red Green Blue) space.
    * 
@@ -19,7 +2814,7 @@ declare namespace micd {
    * Color instances are *immutable*: once created, the component values of a particular Color can't be changed.
    * 
    * **Example:** Convert a CSS color name to its hex notation equivalent
-   * ```
+   * ```js
    * let c = micd.Color.fromCss("pink");
    * console.log(c.toHexString());
    * ```
@@ -32,7 +2827,7 @@ declare namespace micd {
      * @param green The amount of green light, from 0 to 1.
      * @param blue The amount of blue light, from 0 to 1.
      * @param alpha The opacity of the colour, from 0 to 1.
-     * @throws {TypeError} If arguments are missing or not numbers.
+     * @throws *TypeError* If arguments are missing or not numbers.
      */
     constructor(red: number, green: number, blue: number, alpha?: number);
 
@@ -137,7 +2932,7 @@ declare namespace micd {
      * @param blueByte The amount of blue light, from 0 to 255.
      * @param alphaByte The opacity of the colour, from 0 to 255.
      * @returns A Color instance representing the described colour.
-     * @throws {TypeError} If arguments are missing or not numbers.
+     * @throws *TypeError* If arguments are missing or not numbers.
      */
     static fromBytes(redByte: number, greenByte: number, blueByte: number, alphaByte?: number): Color;
 
@@ -156,7 +2951,7 @@ declare namespace micd {
      * @param green The amount of green light, from 0 to 1.
      * @param blue The amount of blue light, from 0 to 1.
      * @returns An array of the converted color components in hue, saturation, value order.
-     * @throws {TypeError} If arguments are missing or not numbers.
+     * @throws *TypeError* If arguments are missing or not numbers.
      * @see [[hsvToRgb]]
      */
     static rgbToHsv(red: number, green: number, blue: number): [number, number, number];
@@ -168,7 +2963,7 @@ declare namespace micd {
      * @param saturation The saturation, from 0 to 1.
      * @param value The value (roughly, the admixture of black or white), from 0 to 1.
      * @returns An array of the converted color components in red, green, blue order.
-     * @throws {TypeError} If arguments are missing or not numbers.
+     * @throws *TypeError* If arguments are missing or not numbers.
      * @see [[rgbToHsv]]
      */
     static hsvToRgb(hue: number, saturation: number, value: number): [number, number, number];
@@ -181,7 +2976,7 @@ declare namespace micd {
      * @param blue The amount of blue light, from 0 to 1.
      * @param alpha The opacity of the colour, from 0 to 1.
      * @returns A CSS rgb(a) string that describes the color.
-     * @throws {TypeError} If arguments are missing or not numbers.
+     * @throws *TypeError* If arguments are missing or not numbers.
      * @see [[toString]]
      */
     static rgbaToCss(red: number, green: number, blue: number, alpha?: number): string;
@@ -193,7 +2988,7 @@ declare namespace micd {
      * @param green The amount of green light, from 0 to 1.
      * @param blue The amount of blue light, from 0 to 1.
      * @param alpha The opacity of the colour, from 0 to 1.
-     * @throws {TypeError} If arguments are missing or not numbers.
+     * @throws *TypeError* If arguments are missing or not numbers.
      * @see [[toHexString]]
      */
     static rgbaToHexString(red: number, green: number, blue: number, alpha?: number);
@@ -207,10 +3002,10 @@ declare namespace micd {
    * The document node at the walker position can be examined using the [[node]] property. To explore or modify nodes recursively, [[visit]] the nodes with a [[VisitorFunction]].
    * 
    * **Example:** Use a Walker to append a variable to the end of a document
-   * ```
-   * let w = new micd.Walker(editor);
-   * w.moveTo.documentEnd();
-   * w.insert.variable("x");
+   * ```js
+   * let walker = new micd.Walker(editor);
+   * walker.moveTo.documentEnd();
+   * walker.insert.variable("x");
    * ```
    */
   class Walker {
@@ -472,7 +3267,8 @@ declare namespace micd {
      *  - both `.` and `,` will be interpreted as radix points.
      * 
      * **Example:** Insert a number using scientific notation
-     * ```
+     * ```js
+     * let walker = new micd.Walker(editor);
      * walker.insert.number("1.4e7");
      * ```
      * 
@@ -485,7 +3281,8 @@ declare namespace micd {
      * Inserts a new operator. This can insert custom operators for which no command exists. If the operator has an existing command, it is recommended that it be inserted by command name as this ensures that the recommended Unicode character is used for its symbol.
      * 
      * **Example:** Insert an asterisk operator
-     * ```
+     * ```js
+     * let walker = new micd.Walker(editor);
      * walker.insert.operator("\u2217", micd.OperatorPlacement.infix);
      * ```
      * 
@@ -501,18 +3298,33 @@ declare namespace micd {
     operator(symbol: string, placement?: OperatorPlacement | keyof typeof OperatorPlacement): boolean;
 
     /**
-     * Inserts a math object by name. This is similar to [[apply]], except that it will reject other types of commands.
+     * Inserts a new chemical element by symbol. This is an alternative to inserting them by their full name as objects.
      * 
-     * @param apiName The name of a command that inserts a math object.
+     * **Example:** Insert the symbol for gold.
+     * ```js
+     * let walker = new micd.Walker(editor);
+     * walker.insert.element("Au");
+     * ```
+     * 
+     * @param symbol The symbol of an element in [[ChemistryObject]].
+     * @param asIsotope If true, the element is inserted as an isotope object instead of a simple element.
+     */
+    element(symbol: string, asIsotope?: boolean): boolean;
+
+    /**
+     * Inserts a math or chemistry object by name. This is similar to [[apply]], except that it will reject other types of commands.
+     * 
+     * @param apiName The name of the command that inserts the object.
      * @returns True if the insertion was possible.
      */
-    object(apiName: MathObject | keyof typeof MathObject): boolean;
+    object(apiName: EditorObject): boolean;
 
     /**
      * Inserts a style object whose children will be rendered with the specified style.
      * 
      * **Example:** 
-     * ```
+     * ```js
+     * let walker = new micd.Walker(editor);
      * walker.insert.style(micd.Color.fromCss("powderblue"));
      * walker.insert.variable("Φ", "constant_scalar");
      * walker.insert.object(micd.EditorCommand.approximatelyEqualTo);
@@ -576,7 +3388,7 @@ declare namespace micd {
      * @param apiName The name of a command that inserts a math object.
      * @returns A clip of the specified math object.
      */
-    object(apiName: MathObject | keyof typeof MathObject): Clip | null;
+    object(apiName: EditorObject): Clip | null;
 
     /**
      * Returns a new clip of the specified style. See [[WalkerInsertionMethods.style]] for more information.
@@ -667,9 +3479,8 @@ declare namespace micd {
      * @param node The node being visited.
      * @param stage A descriptor of the stage of the visitation process: whether the function is being called for a visit before or after entering the node or one of its fields.
      * @param field The index of the node field referred to by the stage, or -1 if the stage refers to the node itself.
-     * @returns Any return value is ignored.
      */
-    (walker: Walker, node: Node, stage: VisitStage, field: number): any;
+    (walker: Walker, node: Node, stage: VisitStage, field: number): void;
   }
 
   /**
@@ -738,8 +3549,19 @@ declare namespace micd {
     contextual = "contextual",
   }
 
-  /** Specifies the type of a variable or identifier. */
+  /**
+   * Specifies the type of a variable or identifier.
+   * 
+   * **Example:** Insert a vector variable
+   * ```js
+   * let editor = new micd.Editor();
+   * let walker = new micd.Walker(editor);
+   * walker.insert.variable("x", micd.DataType.vector);
+   * ```
+   */
   const enum DataType {
+    /** A boolean value, which may have a value of either be true or false. */
+    boolean = "boolean",
     /** A scalar value, the default type. */
     scalar = "scalar",
     /** A set of objects. */
@@ -759,13 +3581,26 @@ declare namespace micd {
     /** Type reserved for unit name components in a unit node. */
     unit_name = "unit_name",
 
+    /** A boolean constant, such as the symbol **T** for true. */
+    constant_boolean = "constant_boolean",
     /** A scalar constant, such as **π** or **e**. */
     constant_scalar = "constant_scalar",
-    /** A set constant, such as ℝ, the field of real numbers. */
+    /** A set constant, such as **ℝ**, the field of real numbers. */
     constant_set = "constant_set",
+    /** A vector constant, such as the zero vector. */
+    constant_vector = "constant_vector",
   }
 
-  /** The type of accent shown over a variable. A null value indicates no accent. */
+  /**
+   * The type of accent shown over a variable. A null value indicates no accent.
+   * 
+   * **Example:** Insert the variable *x̂*
+   * ```js
+   * let editor = new micd.Editor();
+   * let walker = new micd.Walker(editor);
+   * walker.insert.variable("x", micd.DataType.scalar, micd.AccentType.hat);
+   * ```
+   */
   const enum AccentType {
     /** Specifies an acute accent, as in *x́*. */
     acute = "acute",
@@ -790,12 +3625,14 @@ declare namespace micd {
   /**
    * A node represents a single mathematical object in the document structure, such as a variable, a digit, or parentheses.
    * 
-   * Complex nodes have one or more [[Field]]s, which are lists of child nodes. Each field represents a contiguous semantic subpart of the object. For example, a node representing a fraction would have two fields: one representing the numerator, and one representing the denominator. (The order of fields matches the order that the caret would move through them in the editor when repeatedly pressing the Enter key.)
+   * Complex nodes have one or more [[Field]]s, which are lists of child nodes. Each field represents a contiguous semantic subpart of the object. For example, a node representing a fraction would have two fields: one representing the numerator, and one representing the denominator. (The order of fields matches the order that the caret would move through them in the editor when repeatedly pressing the `Enter` key.)
    * 
    * Nodes are read-only reflections of the underlying content: modifying them has no effect on the document. To modify the document, use the [[Walker]] to insert, delete, and apply commands.
    * 
    * **Example:** Print the type of node under the caret
-   * ```
+   * ```js
+   * editor.apply(micd.MathObject.absoluteValue);
+   * editor.apply(micd.EditorCommand.moveLeft);
    * let w = new micd.Walker(editor);
    * w.moveTo.caret();
    * console.log(w.node?.type);
@@ -907,20 +3744,20 @@ declare namespace micd {
     /**
      * If this node is a tabular node, returns the table size as an array giving the number of rows and columns respectively. Note that special columns or rows that expand the node's size are not counted. For example, a 2&nbsp;×&nbsp;4 matrix will return a size of `[2,4]` and not `[3,5]`.
      * 
-     * @see [[isWidthExpandable]]
-     * @see [[isHeightExpandable]]
+     * @see [[widthGrows]]
+     * @see [[heightGrows]]
      */
     readonly size: [number, number] | null;
 
     /**
      * If this node is a tabular node, returns whether it automatically inserts a new column when content is placed in the last column. The [[size]] of a tabular node does not include such columns.
      */
-    readonly isWidthExpandable?: boolean;
+    readonly widthGrows?: boolean;
 
     /**
      * If this node is a tabular node, returns whether it automatically inserts a new row when content is placed in the last row. The [[size]] of a tabular node does not include such rows.
      */
-    readonly isHeightExpandable?: boolean;
+    readonly heightGrows?: boolean;
   }
 
   /**
@@ -977,6 +3814,74 @@ declare namespace micd {
 
 
 
+  /**
+   * Searches the content of a math editor for regions that match a target pattern described by a [[Clip]].
+   * 
+   * **Example:** Find all occurrences of a selection
+   * ```js
+   * view.type("2x+x");
+   * view.pressKey(micd.Keystroke.ShiftArrowLeft);
+   * let pattern = micd.Clip.from(editor);
+   * let agent = new micd.SearchAgent(editor, pattern);
+   * agent.start();
+   * while ((match = agent.find()) != null) {
+   *     console.log(match);
+   * }
+   * ```
+   */
+  class SearchAgent {
+    /**
+     * Creates a new search agent that will search the specified editor.
+     * 
+     * @param editor The editor that will be searched for pattern matches.
+     * @param pattern An optional pattern to search for.
+     */
+    constructor(editor: Editor, pattern?: Clip | null);
+
+    /**
+     * Starts a new search. After calling this, the [[find]] method can be called repeatedly to iterate through all available matches.
+     * 
+     * @param options Options that modify search behaviour.
+     * @returns This agent.
+     */
+    start(options?: SearchOptions | null): SearchAgent;
+
+    /**
+     * Finds and returns the next match in the search.
+     * 
+     * @returns A range describing the next match, or null if there are no more matches.
+     */
+    find(): string | null;
+
+    /**
+     * Gets or sets the pattern to search for. This can be set to null, in which case it will have no matches.
+     */
+    pattern: Clip;
+  }
+
+  /**
+   * Options that may be passed to a [[SearchAgent]] when starting a search to modify its behaviour.
+   * 
+   * **Example:** Find and select the previous occurrence of the selection
+   * ```js
+   * let agent = new micd.SearchAgent(editor, micd.Clip.from(editor));
+   * agent.start({forward: false});
+   * agent.find();
+   * ```
+   */
+  interface SearchOptions {
+    /** The caret position to begin searching from. The default is the current caret position. */
+    position: string;
+    /** If true, the search proceeds from the starting position toward the end of the document. If false, it proceeds from the starting position toward the start of the document. The default is true. */
+    forward: boolean;
+    /** If true, the search will continue until it wraps around from one end of the document to the other and returns to the start position. If false, the search ends when the end of the document is reached. The default is true.*/
+    wrap: boolean;
+    /** If true, empty fields in objects in the pattern will match any content in the corresponding fields in the document. For example, an empty parentheses object would match any parenetheses in the document without regard to what is inside. If false, empty fields in the pattern will only match when the corresponding field is empty in the document. The default is true. */
+    wildFields: boolean;
+    /** If true, as each match is found it will also be selected in the editor. The default is true. */
+    selectMatches: boolean;
+  }
+
 
   /**
    * Editors manage and manipulate math content, track the caret position and selection, support the execution of commands, and enable serialization and conversion of the content under their control.
@@ -988,7 +3893,7 @@ declare namespace micd {
    * An editor does not include a user interface. To present the contents of an editor to the end user and/or allow them to edit its content, create a [[View]] for it.
    * 
    * **Example:** Create an editor, apply a command to it, and view the result
-   * ```
+   * ```js
    * let ed = new micd.Editor();
    * ed.apply(micd.MathObject.thereExists);
    * let view = new micd.View(ed);
@@ -1005,7 +3910,7 @@ declare namespace micd {
 
     /**
      * Sets or gets the content of the editor. Setting this to `null` replaces the content with a new, empty document. This property accepts and returns strings in the Math I Can Do document format.
-     * @throws {TypeError} If set to an invalid document, or to a newer version than the current API version can support.
+     * @throws *TypeError* If set to an invalid document, or to a newer version than the current API version can support.
      */
     value: string | null;
 
@@ -1034,6 +3939,11 @@ declare namespace micd {
     apply(apiName: EditorCommand | keyof typeof EditorCommand): boolean;
 
     /**
+     * Returns a token that changes to a different unique value each time the document is edited, the caret is moved, or the selection changes. Compound edits count as a single combined state change, the the token changes as soon as the edit begins. Changes to the document metadata do not affect the state token. The state token can be used to determine whether a previously validated action still applies. For example, if an Action requires an asynchronous step, such as awaiting data from a server, an implementation can compare the state token value from when the action was approved to the state token value after the data is received. If they are different, the action should either be revalidated or cancelled.
+     */
+    readonly stateToken: number;
+
+    /**
      * Begins a compound edit operation that lasts until [[endCompoundEdit]] is called. Changes to the document made between these calls, such as by applying commands, are combined into a single macro edit. Views will not update until the edit is completed, and the entire macro edit will form a single entry in the edit history. This call can be nested; the compound edit will not be complete until a matching number of calls are made to [[endCompoundEdit]].
      */
     beginCompoundEdit(): void;
@@ -1050,7 +3960,7 @@ declare namespace micd {
      * }
      * ```
      * 
-     * @throws {Error} If called when not paired with a previous call to [[beginCompoundEdit]].
+     * @throws *Error* If called when not paired with a previous call to [[beginCompoundEdit]].
      */
     endCompoundEdit(): void;
 
@@ -1095,14 +4005,14 @@ declare namespace micd {
     clearSelection(): void;
 
     /**
-     * Sets or gets the selection range. Setting this to null will clear the selection, if any.
-     * @throws {TypeError} If set to a value that is not a valid selection.
+     * Sets or gets the selection range. Setting this to null will clear the selection, if any. If the selection is set to a range that does not contain the caret position, the caret will be moved to the end of the selection.
+     * @throws *TypeError* If set to a value that is not a valid selection.
      */
     selection: string | null;
 
     /**
      * Sets or gets the caret position.
-     * @throws {TypeError} If set to a value that is not a valid position.
+     * @throws *TypeError* If set to a value that is not a valid position.
      * @see [[Walker.position]]
      */
     caretPosition: string;
@@ -1145,14 +4055,29 @@ declare namespace micd {
     toMml(preferSelection?: boolean, options?: MmlFormatOptions): Promise<string>;
 
 
+    /**
+     * Converts the content of the editor into a semantic object, a high-level representation useful for processing and conversion.
+     * 
+     * @returns The root of a semantic representation of the document.
+     * @experimental May change or be removed in future releases.
+     */
+    toSemanticObject(): SemanticObject;
 
+    /**
+     * Replaces the content of this editor by converting the supplied semantic object into the internal document format.
+     * 
+     * @param root The root of the semantic document structure.
+     * @returns An array, possibly empty, of any errors encountered during the import process.
+     * @experimental May change or be removed in future releases.
+     */
+    fromSemanticObject(root: SemanticObject): SemanticObjectParserError[];
 
     /**
      * Adds a listener for the specified type of event.
      * 
      * @param type A string naming the event type. For example, the `"change"` type is used to listen for document modifications.
      * @param listener The event listener to call when the event occurs.
-     * @throws {TypeError} If the event type is not a known type.
+     * @throws *TypeError* If the event type is not a known type.
      * @see [[removeEventListener]]
      */
     addEventListener(type: EditorEventType, listener: EventListener<EditorEvent>): void;
@@ -1190,12 +4115,95 @@ declare namespace micd {
     historyless?: boolean;
   }
 
-  /** Options that affect image conversion with [[Editor.toImage]] and [[Editor.downloadImage]]. */
+  /**
+   * A high-level semantic description of an object from an editor (or to be imported into an editor).
+   * 
+   * @experimental May change or be removed in future releases.
+   */
+  interface SemanticObject {
+    /** The specific type of object; an API name or a general type such as `"variable"` or `"number"`. */
+    type: string;
+    /** The general type of the object. */
+    baseType?: string;
+    /** A general mathematical category or subject area to which the object belongs. */
+    category?: string;
+    /** For text objects, the text content of the object. */
+    text?: string;
+    /** The object's symbol, such as a variable name, number value, or operator symbol. */
+    symbol?: string;
+    /** Optional symbol placed above the operator symbol. Used by certain rare operators. Where a Unicode symbol already combines the elements, it should be used as the symbol instead of using this field. */
+    symbolAbove?: string;
+    /** For variables, an optional string describing the type of accent to add, if any. */
+    accent?: string;
+    /** The data type of a variable or identifier. */
+    dataType?: string;
+    /** The placement of an operator. */
+    placement?: OperatorPlacement;
+    /** The placement of an operator in the context from which it was exported. */
+    effectivePlacement?: OperatorPlacement;
+    /** The type of operation, if any, that is implicitly applied to this object and the next one. For example, there is an implicit multiplication (`"timesDot"`) between the coefficient 2 and variable *x* in the term 2*x*. */
+    implicitOperatorThatFollows?: "timesDot" | "plus";
+
+    /** For a script object, whether the object has an index (subscript) field. */
+    hasIndex?: boolean;
+    /** For a script object, whether the object has an exponent (superscript) field. */
+    hasPower?: boolean;
+
+    /** For style nodes that change the colour, the amount of red in the new colour from 0 to 1 inclusive. */
+    red?: number;
+    /** For style nodes that change the colour, the amount of green in the new colour from 0 to 1 inclusive. */
+    green?: number;
+    /** For style nodes that change the colour, the amount of blue in the new colour from 0 to 1 inclusive. */
+    blue?: number;
+    /** For style nodes that change the colour, the opacity of the new colour from 0 to 1 inclusive. */
+    opacity?: number;
+    /** For style nodes that change the content size, the new scale. */
+    scale?: number;
+
+    /** For objects with child fields, an array of those fields. */
+    fields?: SemanticObject[][];
+    /** An alternative to `field` for objects with a single field. */
+    field?: SemanticObject[];
+    /** For variable-sized rectangular objects, the width and height of the object. */
+    size?: [number, number];
+		/** For variable-sized rectangular objects, whether the width (number of rows) can increase. */
+    widthGrows?: boolean;
+    /** For variable-sized rectangular objects, whether the height (number of columns) can increase. */
+		heightGrows?: boolean;
+  }
+
+  /**
+   * Describes an error that occurred while importing a semantic object.
+   * 
+   * @experimental May change or be removed in future releases.
+   */
+  interface SemanticObjectParserError {
+    /** A message describing the cause of the error. */
+    message: string;
+    /** A string describing the caret position of the error in the imported content, where available. */
+    position?: string;
+    /** The object which caused the error, where available. */
+    object?: SemanticObject;
+    /** The field number that pertains to the error, where relevant and known. */
+    field?: number;
+  }
+	
+
+  /**
+   * Options that affect image conversion with [[Editor.toImage]] and [[Editor.downloadImage]].
+   * 
+   * **Example:** List image formats supported in this browser
+   * ```js
+   * micd.util.supportedImageFormats().forEach(fmt => {
+   *   console.log(JSON.stringify(fmt, null, 2));
+   * });
+   * ```
+   * 
+   * @see [[supportedImageFormats]]
+   */
   interface ImageFormatOptions {
     /**
      * Image file format such as `"png"` or `"svg"`. Default is `"png"`. Other formats may be supported depending on the browser, such as `"jpeg"` or `"avif"`. If the requested format is not available, a PNG image is produced.
-     * 
-     * @see [[micd.util.supportedImageFormats]]
      */
     format?: "png" | "svg" | "jpeg" | string | null;
     /** Quality of lossy formats such as `"jpeg"`, between `0` and `1`. Default is `0.92`. */
@@ -1329,7 +4337,19 @@ declare namespace micd {
   }
 
   /**
-   * Allows reading and writing the metadata associated a math document. Document metadata consists of a map with strings for both keys and values. If you wish to add your own custom keys to a document, include at least one dash `-` in the key name to avoid conflicts with any new keys added by future versions of the library.
+   * Allows reading and writing the metadata associated a math document. Document metadata consists of a map with strings for both keys and values. If you wish to add your own custom keys to a document, include at least one dash `-` in the key name to avoid conflicts with any new keys added by future versions of the API.
+   * 
+   * **Example:** Observe while adding, changing, and removing a custom key
+   * ```js
+   * let editor = new micd.Editor();
+   * editor.metadata.addEventListener("change", ev => {
+   *   console.log(`${ev.oldValue} => ${ev.newValue}`);
+   * });
+   * editor.metadata.put("custom-key", "value");
+   * editor.metadata.put("custom-key", "new value");
+   * console.log(editor.metadata.get("custom-key"));
+   * editor.metadata.remove("custom-key");
+   * ```
    * 
    * @see [[Editor.metadata]]
    */
@@ -1376,7 +4396,7 @@ declare namespace micd {
      * 
      * @param type A string naming the event type. For example, the `"change"` type is used to listen for document modifications.
      * @param listener The event listener to call when the event occurs.
-     * @throws {TypeError} If the event type is not a known type.
+     * @throws *TypeError* If the event type is not a known type.
      * @see [[removeEventListener]]
      */
     addEventListener(type: MetadataEventType, listener: EventListener<MetadataEvent>): void;
@@ -1421,7 +4441,7 @@ declare namespace micd {
    * A single editor may have multiple views. However, a given view is always tied to a single editor instance, the one passed to its constructor. To create the illusion of a single view switching between multiple editors, either use multiple views and hide those not in use, or destroy and replace a single view on demand.
    * 
    * **Example:** Create and add a View to the page
-   * ```
+   * ```js
    * let view = new micd.View();
    * view.addToDom(document.body);
    * view.focus();
@@ -1487,7 +4507,7 @@ declare namespace micd {
      * 
      * @param parentNode If supplied, the view's root element will be appended to this node's children.
      * @param beforeThisSibling If supplied in addition to `parentNode`, the view's root element will be inserted *before* this node in the parent's children instead of appending it to the end.
-     * @throws {Error} If the editor element is not, in fact, in the document tree (after any positioning specified by the arguments).
+     * @throws *Error* If the editor element is not, in fact, in the document tree (after any positioning specified by the arguments).
      * @see [[removeFromDom]]
      */
     addToDom(parentNode?: Element, beforeThisSibling?: Element): void;
@@ -1522,19 +4542,21 @@ declare namespace micd {
     isFocused(): boolean;
 
     /**
-     * Simulates the user typing a sequence of characters on the keyboard. The view does not need to be focused or even added to the DOM. In addition to regular printable characters, the string may include `\n` (U+000A) to simulate typing Enter, `\b` (U+0008) to simulate typing Backspace, and U+007F to simulate typing Delete. Abbreviations can be used to insert complex math objects (for example, `".sum "`—note the space). Finally, [[Clip]] values to be pasted may be embedded within the typed sequence by surrounding them with `\0` (U+0000) characters.
+     * Simulates the user typing a sequence of characters on the keyboard. The view does not need to be focused or even added to the DOM. In addition to regular printable characters, the string may include `\n` (U+000A) to simulate typing Enter, `\b` (U+0008) to simulate typing Backspace, and U+007F to simulate typing Delete. Abbreviations can be used to insert complex math objects (for example, `".sum "`—note the space). Commands that do not have an assigned abbreviation can be selected by their full name (for example, `".moveLeft "), although [[Editor.apply]] is more efficient.
      * 
      * @param input The characters to simulate typing.
+     * @see [[pressKey]]
      */
     type(input: string): void;
 
     /**
-     * Simulates the user pressing a single key combination. This method does not require the view to have input [[focus]].
+     * Simulates the user pressing a single key combination. This method does not require the view to have input [[focus]]. Passing null or undefined has no effect.
      * 
      * @param gesture The key to simulate, described in the same format used by [[View.gestureMap]].
-     * @throws {TypeError} If the string is not a valid gesture.
+     * @throws *TypeError* If the string is not a valid gesture.
+     * @see [[type]]
      */
-    pressKey(gesture: string | null): void;
+    pressKey(gesture?: Keystroke | string | null): void;
 
     /**
      * Prints the math document to a printer.
@@ -1561,6 +4583,17 @@ declare namespace micd {
     scrollToNode(node: Node): void;
 
     /**
+     * Returns an array of DOMRect objects that describe bounding rectangles for the visual representation of the node in this view. If the node is not in the view, possibly because the view is still updating, the array will be empty. Otherwise, in most cases the node will be represented as a single rectangle. The exception is if the node has been wrapped over multiple view lines. In this case, there will be one rectangle for each line that the node spans.
+     * 
+     * @param node The math document node to get bounding rectangles of.
+     * @param field The field within the node to get bounding rectangles of, or -1 for the entire node. The default is -1.
+     * @returns Zero or more rectangles, with coordinates relative to the upper-left corner of the page.
+     * @see [[Walker]]
+     * @experimental May change or be removed in future releases.
+     */
+    getNodeRects(node: Node, field?: number): DOMRect[];
+
+    /**
      * Returns a Promise that resolves once any pending updates to this view have been completed.
      * 
      * @returns A Promise that resolves when this view is up to date.
@@ -1568,25 +4601,29 @@ declare namespace micd {
     onceUpToDate(): Promise<View>;
 
     /**
-     * Invokes the supplied callback once any pending updates to the view have been completed.
+     * Gets this view's key binding map.
      * 
-     * @param callbackFn A function called when this view is up to date.
-     */
-    onceUpToDate(callbackFn: (view: View) => any): null;
-
-    /**
-     * Gets this view's key bindings.
+     * The keys in this map are strings that describe keyboard gestures. They can consist of either a single printable character, or else a description of a key combination. A key combination consists of an optional modifier name separated from a key name by a space character, such as `"Ctrl ArrowLeft"`. On Apple devices, modifier names that include `Ctrl` or `Alt` are automatically mapped to the Command and Option keys, respectively.
      * 
-     * The keys in this map are strings that describe keyboard gestures. They can consist of either a single printable character, or else a description of a key combination. A key combination consists of an optional modifier name separated from a key name by a space character, such as `"Ctrl ArrowLeft"`. On Apple devices, modifier names that include Ctrl or Alt are automatically mapped to the Command and Option keys, respectively.
-     * 
-     * To improve cross-platform compatibility, only certain modifier key combinations are allowed; a type-safe enumeration of these combinations is available as [[micd.Keystroke]].
+     * To improve cross-platform compatibility, only certain modifier key combinations are allowed; a typed enumeration of these combinations is available as [[micd.Keystroke]].
      */
     readonly gestureMap: InputMap<Keystroke | string>;
 
     /**
-     * Gets this view's abbreviations.
+     * Gets this view's abbreviation map.
      * 
-     * The keys in this map are abbreviations, strings of letters and/or digits that can be expanded to convert them into math objects. Abbreviations must begin with a letter.
+     * The keys in this map are abbreviations: strings of characters that can be expanded to convert them into math objects or other actions. Abbreviations are used by typing them into the editor and then using the expand abbreviation command, which is bound to the space key by default. Abbreviations can consist of letters (which match scalar variables), digits, and operator symbols (which match simple operators
+     * using that symbol). They may not begin with digits. Abbreviations that contain operator symbols are matched more strictly than other
+     * types.
+     * 
+     * Abbreviation maps contain the following types of abbreviations:
+     * 
+     *  - **Standard:** A standard abbreviation maps to a command or custom action. When a standard abbreviation is the longest matching abbreviation, it is guaranteed to be selected when the expand abbreviation command is used. It may also be selected if only a prefix has been entered, if no better match is found.
+     *  - **Fragment:** A fragment can only be mapped to a command. It consists of lowercase letters from `a` to `z` and is matched case-insensitively against the text to be expanded. Unlike other abbreviation types, a fragment can match multiple commands. Fragments are useful for assigning aliases to existing commands. Fragments are marked by prefixing the abbreviation string with a `#` (this is not considered part of the abbreviation).
+     *  - **Prefix mapper:** A prefix mapper matches a specific prefix and then determines how to expand the abbreviation by evaluating a function against the remaining characters. Prefix mappers are marked by a `*` following the prefix that they match. For example, the unit mapper `u*` is applied to abbreviations starting with the letter `u` to create unit objects. At this time, they can be removed from, but not added to, the map (except by adding the default mappings).
+     *  - **Generic mapper:** Like a prefix mapper, a generic mapper evaluates a function to determine what, if any, expansion it should produce. However, generic mappers are always consulted for every expansion attempt. Generic mappers consist of a `.` followed by a string that describes the mapper's purpose. At this time, they can be removed from, but not added to, the map (except by adding the default mappings).
+     * 
+     * @see [[abbreviationExpansionVisible]]
      */
     readonly abbreviationMap: InputMap<string>;
 
@@ -1594,9 +4631,21 @@ declare namespace micd {
     disabled: boolean;
 
     /**
+     * Gets or sets whether this view numbers the document lines. Attempting to set this to true when the editor is single line will have no effect.
+     */
+    lineNumbers: boolean;
+
+    /**
+     * Gets or sets whether this view will display a floating control near the caret that shows what the effect of expanding an abbreviation would be. The default is true.
+     * 
+     * @see [[abbreviationMap]]
+     */
+    abbreviationExpansionVisible: boolean;
+
+    /**
      * Gets or sets this view's relative font size. This is a scaling factor relative to the default font size for the view. The initial value is 1. Setting this to a value greater than 1 will increase the size, while setting this to a positive value less than 1 will decrease the size. The base font size for new views is determined by the [[ThemeOptions]]. By default, this size is ultimately derived from the default font size set by the user in their browser options.
      * 
-     * @throws {RangeError} If the scale is not a positive number.
+     * @throws *RangeError* If the scale is not a positive number.
      */
     fontScale: number;
 
@@ -1608,6 +4657,8 @@ declare namespace micd {
 
   /**
    * A map that describes bindings from possible input values to editing actions. Usually, the actions are editor commands, but custom actions can be added by subclassing [[Action]] and passing the new action to [[put]]. The nature of a map's input values is determined by the kind of map. For example, a [[gestureMap]] binds keystrokes to actions, while an [[abbreviationMap]] binds short letter strings to actions.
+   * 
+   * @param I The type of key (input) accepted by the map.
    */
   interface InputMap<I> {
     /**
@@ -1615,7 +4666,7 @@ declare namespace micd {
      * 
      * @param input The input value.
      * @param customAction The action to perform when the user produces the gesture.
-     * @throws {TypeError} If the input format is not valid or the action is not an [[Action]] instance.
+     * @throws *TypeError* If the input format is not valid or the action is not an [[Action]] instance.
      */
     put(input: I, customAction: Action): void;
 
@@ -1624,7 +4675,7 @@ declare namespace micd {
      * 
      * @param input The input value.
      * @param apiName The name of the built-in command to map to the gesture.
-     * @throws {TypeError} If the input format is not valid or the command name is not a valid command.
+     * @throws *TypeError* If the input format is not valid or the command name is not a valid command.
      */
     put(input: I, command: EditorCommand | keyof typeof EditorCommand): void;
 
@@ -1643,8 +4694,18 @@ declare namespace micd {
      */
     remove(input: I): void;
 
+    /**
+     * Removes all bindings for inputs that map to the specified command. This will block access to the command through the input map (unless a new mapping is created later). In some cases, however, it may not completely block all access to the *effect* of the command. For example, to completely block a command's effect in the abbreviation map, it may be neccessary to also remove one or more of the built-in mapping functions such as `.magicPowers`.
+     * 
+     * @param command The command to remove from the input map.
+     */
+    removeCommand(command: EditorCommand | keyof typeof EditorCommand): void;
+
     /** Clears the map of all input value bindings. */
     clear(): void;
+
+    /** Returns an array of the keys of the input map. */
+    keys(): I[];
 
     /** Adds the default binding for all built-in commands. To reset the map to its initial state, first call [[clear]]. */
     addDefaults(): void;
@@ -1654,20 +4715,55 @@ declare namespace micd {
      * 
      * @param command The name of the built-in command to look up.
      * @returns An input string that (unless replaced or removed) maps to the specified command, or `null` if none.
-     * @throws {TypeError} If the command is not a valid command name.
+     * @throws *TypeError* If the command is not a valid command name.
      */
     getDefaultFor(command: EditorCommand | keyof typeof EditorCommand): string;
   }
 
 
   /**
-   * The base class for creating custom editing actions. While built-in actions are applied through an editor, custom actions are activated through a particular view. Namely, the view whose [[InputMap]] received the input that produced it. This allows custom actions to mix low-level commands (through `view.editor.apply`) with higher-level mutations like [[View.type]].
+   * The base class for creating custom editing actions. While built-in commands are applied through an editor, custom actions are activated through a particular view. This allows custom actions to mix low-level commands (through `view.editor.apply`) with higher-level functionality like [[View.type]].
+   * 
+   * An action is typically activated when a view receives an input that maps to the action in one of its [[InputMap]]s. For example, the action may be added to a view's gesture map with a keyboard shortcut.
+   * 
+   * **Example:** Define an action that makes the current selection transparent
+   * ```js
+   * class MakeInvisibleAction extends micd.Action {
+   *   canApplyTo(view) {
+   *     return view.editor.hasSelection() && !view.editor.readOnly;
+   *   }
+   *   applyTo(view) {
+   *     const ed = view.editor;
+   *     ed.beginCompoundEdit();
+   *     try {
+   *       const selection = micd.Clip.from(ed);
+   *       ed.apply(micd.EditorCommand.deleteSelection);
+   *       view.type(".RGB0000 ");
+   *       selection.applyTo(ed);
+   *       ed.apply(micd.EditorCommand.forwardEnter);
+   *     } finally {
+   *       ed.endCompoundEdit();
+   *     }
+   *   }
+   *   toString() {
+   *     return "Make invisible";
+   *   }
+   * }
+   * 
+   * view.gestureMap.put(micd.Keystroke.CtrlI,
+   *     new MakeInvisibleAction());
+   * ```
    * 
    * @see [[InputMap]]
    */
   class Action {
+    /** Creates a new action. */
+    constructor();
+
     /**
-     * Returns whether the action can currently be applied.
+     * Returns whether the action can currently be applied. The base class will always return true.
+     * 
+     * This method must not modify the contents of the editor document.
      * 
      * @param view The view that the action was registered with.
      * @returns Returns true if and only if the action can be applied.
@@ -1675,11 +4771,18 @@ declare namespace micd {
     canApplyTo(view: View): boolean;
 
     /**
-     * Applies the action, if possible.
+     * Applies the action, if possible. The base class reminds developers that the method must be overridden, so subclasses should not invoke the super implementation.
      * 
      * @param view The view that the action was registered with.
      */
     applyTo(view: View): void;
+
+    /**
+     * Returns a string that describes the action to end users.
+     * 
+     * @returns A brief, human-friendly description of the action.
+     */
+    toString(): string;
   }
 
   /**
@@ -1688,8 +4791,8 @@ declare namespace micd {
    * Clips can be converted to and from strings, making it easy to transfer them from one editor to another, even across windows, devices, or editing sessions.
    * 
    * **Example:** Capture a clip in one editor and paste it in another
-   * ```
-   * let selectionClip = micd.Clip.from(editor1);
+   * ```js
+   * let selectionClip = micd.Clip.from(editor);
    * let editor2 = new micd.Editor();
    * selectionClip.applyTo(editor2);
    * ```
@@ -1705,7 +4808,7 @@ declare namespace micd {
     /**
      * A string representation of the clip content in the MICD clip format. The clip can be recreated by passing this value to the Clip constructor.
      * 
-     * @throws {TypeError} If set to a string that is not a valid MICD clip.
+     * @throws *TypeError* If set to a string that is not a valid MICD clip.
      */
     value: string | null;
 
@@ -1733,13 +4836,21 @@ declare namespace micd {
      * @param range A string describing the range the clip should cover; otherwise the editor's current selection is used.
      */
     static from(editor: Editor, range?: string): Clip;
+
+    /**
+     * Creates a new clip from the contents of the specified editor. The contents of the editor are not changed.
+     * 
+     * @param editor The editor instance to make a clip from.
+     * @param line The line number of the editor document that the clip should cover, starting from 0.
+     */
+    static from(editor: Editor, line: number): Clip;
   }
 
   /**
-   * This namespace contains the API related to [[Shell]]s, an optional library component that provides a richer editing experience than a simple [[View]]. New shells are created by calling the [[create]] function, which returns a Promise that resolves to the new shell (after loading the shell library component if necessary).
+   * This namespace contains the API related to [[Shell]]s, an optional API component that provides a richer editing experience than a simple [[View]]. New shells are created by calling the [[create]] function, which returns a Promise that resolves to the new shell (after loading the shell API if necessary).
    * 
    * **Example:** Append a new Shell to the page
-   * ```
+   * ```js
    * let shell = await micd.shell.create();
    * shell.focus();
    * ```
@@ -1768,6 +4879,11 @@ declare namespace micd {
        * @param index Returns the requested panel, or `null` if it does not exist.
        */
       getPanel(index: number): SidePanel;
+
+      /**
+       * Requests that the view within the shell be given input focus. This is just a convenient shorthand for the equivalent to `shell.view.focus()`.
+       */
+      focus(): void;
 
       /** Removes the shell from the page, destroys the editor, and frees associated resources. */
       dispose(): void;
@@ -1932,7 +5048,7 @@ declare namespace micd {
       | [PaletteButtonTemplate, PaletteButtonTemplate, PaletteButtonTemplate, PaletteButtonTemplate, PaletteButtonTemplate]
       | [PaletteButtonTemplate, PaletteButtonTemplate, PaletteButtonTemplate, PaletteButtonTemplate, PaletteButtonTemplate, PaletteButtonTemplate];
 
-    /** An entry describing one button in a row of palette buttons. This can be a single string to assign a primary action, or an array of two strings to assign both primary and secondary actions (activated with Shift). Each string can be a single character to assign an action that inserts that character as a variable or digit, or it can be the name of a command. Not all commands can be used, but all math object commands can. If the entry is a [[CustomPaletteButtonTemplate]] object, a custom button will be created that performs its own handling when clicked. Finally, if the entry is `null`, it will produce a spacer that consumes the same space as a button but does nothing if clicked. */
+    /** An entry describing one button in a row of palette buttons. This can be a single string to assign a primary action, or an array of two strings to assign both primary and secondary actions (activated with `Shift`). Each string can be a single character to assign an action that inserts that character as a variable or digit, or it can be the name of a command. Not all commands can be used, but all math object commands can. If the entry is a [[CustomPaletteButtonTemplate]] object, a custom button will be created that performs its own handling when clicked. Finally, if the entry is `null`, it will produce a spacer that consumes the same space as a button but does nothing if clicked. */
     type PaletteButtonTemplate = null | string | [string, string] | CustomPaletteButtonTemplate;
 
     /**
@@ -1964,7 +5080,7 @@ declare namespace micd {
        * @param id The optional ID string specified by the custom button template, if any.
        * @param button The root element used to represent the button.
        */
-      (shell: Shell, id: string, button: HTMLElement): any
+      (shell: Shell, id: string, button: HTMLElement): void
     }
 
     /**
@@ -1995,6 +5111,8 @@ declare namespace micd {
       calculus = "calculus",
       /** Palette of common commands for primary and secondary school geometry. */
       geometry = "geometry",
+      /** Paletts of commands for group theory. */
+      groupTheory = "groupTheory",
       /** Palette of common chemical equation objects, including common elements. */
       chemistry = "chemistry",
       /** Palette of common computing-related math objects, including asymptotic analysis, string literals, relational algebra, and the λ-calculus. */
@@ -2047,7 +5165,7 @@ declare namespace micd {
      */
     function getAddedShells(): Shell[];
 
-    /** When the library is loaded in `"editor"` mode, this will be set to the shared global shell. (If the shared shell is disposed of, this becomes `null`.) Otherwise it is `undefined`. */
+    /** When the API is loaded in `"editor"` mode, this will be set to the shared global shell. (If the shared shell is disposed of, this becomes `null`.) Otherwise it is `undefined`. */
     var shared: Shell | undefined | null;
   }
 
@@ -2088,7 +5206,7 @@ declare namespace micd {
      * @param document1 A document in the MICD document format.
      * @param document2 The document to be compared to the first document, also in the MICD document format.
      * @returns If the documents have the same math content, true; otherwise false.
-     * @throws {TypeError} If either argument is not a valid MICD document.
+     * @throws *TypeError* If either argument is not a valid MICD document.
      * @see [[Editor.value]]
      */
     function compareMathContent(document1: string, document2: string): boolean;
@@ -2110,7 +5228,23 @@ declare namespace micd {
     function isValidClip(clip: any): boolean;
 
     /**
+     * Given a semantic object from any source, returns a semantic object that describes the same content in the standard form returned by the API.
+     * 
+     * @param object The semantic object to normalize.
+     * @returns A structure containing the normalized object and an array of any errors found in the source object.
+     */
+    function normalizeSemanticObject(object: SemanticObject): { object: SemanticObject, errors: SemanticObjectParserError[] };
+
+    /**
      * Returns a new array in which each element describes one of the image formats supported on the current device when exporting math content to an image. Support for `"png"` and `"svg"` is guaranteed. Other entries depend on the platform and/or browser, but may include `"bmp"`, `"gif"`, `"jpeg"`, `"webp"`, and `"avif"`. The array can be iterated over to list supported formats, or specific formats can be looked up by name (as in `formats["png"]`).
+     * 
+     * **Example:** Create a glob pattern for accepted files
+     * ```js
+     * const filters = micd.util.supportedImageFormats()
+     *   .map(fmt => fmt.fileExtension)
+     *   .join();
+     * console.log(`*.{${filters}}`);
+     * ```
      * 
      * @returns An array with an element for each supported format.
      * @see [[Editor.toImage]]
@@ -2156,12 +5290,22 @@ declare namespace micd {
       section: string;
       /** Name of the command. */
       name: EditorCommand;
-      /** The default gesture used to activate the command, if any. This is in the form of a gesture string as it would be passed to an input map, either a single typed character or a keystroke description such as `"Ctrl X"`. */
+      /** A version of the command name suitable for use as a label for a human reader. */
+      label: string;
+      /** A version of the section name suitable for use as a label for a human reader. */
+      sectionLabel: string;
+      /**
+       * The default gesture used to activate the command, if any. This is in the form of a gesture string as it would be passed to an input map, either a single typed character or a keystroke description such as `"Ctrl X"`.
+       * 
+       * @see [[View.gestureMap]]
+       */
       gesture?: micd.Keystroke | string;
       /** The default abbreviation used to activate the command, if any. */
       abbreviation?: string;
-      /** The ligature sequence, if any, that activates the command. This is a sequence of operator symbol keys, such as `"<="`, that will automatically be converted into the object produced by this command. */
+      /** The primary ligature sequence, if any, that activates the command. This is a sequence of operator symbol keys, such as `"<="`, that will automatically be converted into the object produced by this command. */
       ligature?: string;
+      /** The general type of command, such as an editing command or a command that inserts a math object. */
+      type: "editing" | "math" | "chemistry";
     }
 
     /**
@@ -2182,17 +5326,29 @@ declare namespace micd {
      * 
      * @param symbol A non-empty string containing the symbol or name to use for the operator.
      * @param placement A string naming the placement of the operator; if not specified an appropriate default is chosen based on the symbol.
-     * @throws {ReferenceError} If the symbol is missing.
-     * @throws {TypeError} If the symbol is too long or the placement is invalid.
+     * @throws *ReferenceError* If the symbol is missing.
+     * @throws *TypeError* If the symbol is too long or the placement is invalid.
      */
     function createOperator(symbol: string, placement?: OperatorPlacement | keyof typeof OperatorPlacement): micd.Clip;
 
     /**
+     * Returns a new editor that contains a copy of the line containing the specified caret position and selection. The specified caret position and selection will be translated to the same relative position in the copy. If a caret position and selection are not provided, the current position and selection in the source editor are used.
+     * 
+     * A safe space can be used to safely test a complex, multistep edit operation without affecting the undo history of the source editor. If the operation succeeds in the safe space, the same steps can be repeated in the source editor.
+     * 
+     * @param source The editor to create a safe copy from.
+     * @param caretPosition The document caret position to be recreated; the default uses the source editor caret position.
+     * @param selection The selection to be recreated, or null for no selection; the default uses the source editor selection. This argument is ignored if `caretPosition` is null.
+     * @returns A new, historyless editor that containing the copied context and translated.
+     */
+    function createSafeSpace(source: Editor, caretPosition?: string, selection?: string): Editor;
+
+    /**
      * Compresses a string. The returned string is *usually not longer than* (and often significantly shorter than) the original string. The original string can be recovered by calling [[decompress]] with the compressed string as an argument.
      * 
-     * By default, compressed strings use the entire range of character values. This improves compression effectiveness when the compressed string will be kept in memory or otherwise stored as 16-bit character values. However, if encoded as UTF-8, the encoded representation of the compressed string will typically require *more* bytes than the *uncompressed* string would have. Passing true for `optimizeForUtf8` limits the compression efficiency but ensures that the compressed string uses only single-byte UTF-8 characters. The compressed result will generally require more *characters* than the standard method, but those characters will use fewer actual *bytes* when encoded.
+     * By default, compressed strings use the entire range of character values. This improves compression effectiveness when the compressed string will be kept in memory or otherwise stored as 16-bit character values. However, if encoded as UTF-8, the encoded representation of the compressed string will typically require *more* bytes than the *uncompressed* string would have. Passing true for `optimizeForUtf8` limits compression efficiency but ensures that the compressed string uses only single-byte UTF-8 characters. The compressed result will generally require more *characters* than the standard method, but those characters will use fewer actual *bytes* when encoded.
      * 
-     * In cases where compression is ineffective and the compressed string ends up longer than the original, this function can often return the original string instead. This is transparent to the caller: passing such strings to [[decompress]] will return the correct result.
+     * If null or an empty string is passed in, it is returned unchanged. The original string may also be returned if the compressed result would be longer. This is transparent to the caller: [[decompress]] handles such strings correctly.
      * 
      * @param toCompress The string to compress.
      * @param optimizeForUtf8 If true, the compressor will minimize the byte length of the string's UTF-8 encoding instead of minimizing the number of characters in the compressed string object.
@@ -2208,14 +5364,14 @@ declare namespace micd {
     function decompress(toDecompress: string | null): string | null;
   }
 
-  /** Auxiliary user interface elements, including dialogs and menus. This is a lightweight toolkit intended primarily for the library's own internal needs. It provides a number of conveniences, including pre-built option dialogs and easy extension of the default context menu. However, using it is entirely optional. */
+  /** Auxiliary user interface elements, including dialogs and menus. This is a lightweight toolkit intended primarily for the API's own internal needs. It provides a number of conveniences, including pre-built option dialogs and easy extension of the default context menu. However, using it is entirely optional. */
   namespace ui {
     /**
      * Returns a Promise that resolves to the root of a tree of HTMLElements that provide a graphic representation of some math content. The content is described by a string using one of three formats: the string value of a [[Clip]], the name of a command that inserts math, or a string of MathML. Note that this is intended mainly to support the construction of user interface elements and might not be suited to more general math display applications.
      * 
      * @param math A string containing a clip, a command name, or MathML.
      * @returns A Promise that resolves to the root of a tree of HTMLElements that will display the math, or `null` if a callback was supplied.
-     * @throws {ReferenceError} If the supplied math content is null.
+     * @throws *ReferenceError* If the supplied math content is null.
      */
     function toHtml(math: string): Promise<HTMLElement>;
 
@@ -2335,10 +5491,18 @@ declare namespace micd {
       /** An optional clip of math content that illustrates the command. */
       clip?: micd.Clip | null;
 
-      /** An optional key gesture that activates the command. */
+      /**
+       * An optional key gesture that activates the command. If the string is a single code point, it represents a printable character. Otherwise it represents a [[Keystroke]].
+       * 
+       * @see [[View.gestureMap]]
+       */
       gesture?: string | null;
 
-      /** An optional abbreviation that activates the command. */
+      /**
+       * An optional abbreviation that activates the command.
+       * 
+       * @see [[View.abbreviationMap]]
+       */
       abbreviation?: string | null;
 
       /** Additional information that will be appended to the table just under this command. This can appear by itself, in which case the note is attached to the most recently added command.  */
@@ -2349,7 +5513,7 @@ declare namespace micd {
      * Displays a basic popup menu based on a template. Only one popup menu can be visible at a time. If a menu is already showing when this is called, it will be cancelled automatically.
      *
      * @param template The template that defines the structure and logic for the desired dialog.
-     * @throws {ReferenceError} If the template is null.
+     * @throws *ReferenceError* If the template is null.
      */
     function showMenu(template: MenuTemplate): void;
 
@@ -2362,14 +5526,14 @@ declare namespace micd {
        * 
        * @param template The template that the event occurred on.
        */
-      (template: T): any;
+      (template: T): void;
     }
 
     /** The common base interface for all menu template interfaces. */
     interface MenuTemplateBase {
       /** An optional value that can be set to assist in implementing the menu logic. It is ignored by [[showMenu]] and does not affect any DOM ids. */
       id?: string | null;
-      /** If defined, this function will be called when the user selects a menu item. */
+      /** If defined, this function will be called when the user chooses a menu item. */
       onUse?: MenuListener<MenuItemTemplate> | null;
       /** An array of templates for the items that will comprise the menu or submenu. */
       items?: MenuItemTemplate[] | null;
@@ -2381,6 +5545,8 @@ declare namespace micd {
       pageX: number;
       /** The *y*-offset at which to display the menu, relative to the top edge of the document. The actual location of the menu may be adjusted to ensure visibility. */
       pageY: number;
+      /** The optional index of a menu item that will be focused and highlighted when the menu is shown. The default is not to preselect an item. */
+      preselect?: number;
       /** If defined, this function is called if an item is selected *and* that item does not specify its own `onUse` function. It will be passed the template of the selected menu item. */
       onUse?: MenuListener<MenuItemTemplate> | null;
       /** If defined, this function is called if the menu is closed without selecting an item. It will be passed the template of the menu that was cancelled. */
@@ -2413,6 +5579,8 @@ declare namespace micd {
        * - A separator will be inserted between any two items with a difference of at least 100 in their `group` values.
        */
       group?: number | null;
+      /** If defined, this function will be called when the user selects (highlights) a menu item by using the keyboard or moving the pointer over it. */
+      onSelect?: MenuListener<MenuItemTemplate> | null;
     }
 
     /**
@@ -2624,7 +5792,7 @@ declare namespace micd {
 
     /**
      * A template that declares a math field control in a [[DialogTemplate]].
-     * @experimental
+     * @experimental May change or be removed in future releases.
      */
     interface MathFieldTemplate extends WidgetBase<MathFieldTemplate, HTMLDivElement> {
       /** The type property must be set to `"math"`. */
@@ -2691,7 +5859,7 @@ declare namespace micd {
       /** The type property must be set to `"custom"`. */
       type: "custom";
 
-      /** This can be set to differentiate amongst multiple custom widgets; it is ignored by the library. */
+      /** This can be set to differentiate amongst multiple custom widgets; it is ignored by the API. */
       customType?: string | null;
 
       /**
@@ -2903,10 +6071,10 @@ declare namespace micd {
   }
 
 
-  /** This must be set to the API key assigned to you by Math I Can Do before loading the library. If you need a key or have lost your key, please [contact us for help](http://mathicando.com). */
+  /** When the API is loaded by `<script>` tag, this must be set to a valid API key before loading the API.  If you need a key or have lost your key, please [contact us for help](http://mathicando.com). A key consisting of 22 zeroes can be used *for development and testing only* on localhost. */
   var key: string;
 
-  /** When defined before loading the library, this function is called once the library is completely loaded and ready for use. No arguments are passed to it, and any return value is ignored. */
+  /** When the API is loaded by `<script>` tag, this should be set to a callback function. The function will be invoked once the API is completely loaded and ready for use. No arguments are passed to it, and any return value is ignored. */
   var onReady: () => any | undefined | null;
 
   /**
@@ -2939,7 +6107,7 @@ declare namespace micd {
 
 
   /**
-   * Properties defined in `micd.config` before loading the library will modify the library configuration. After the library is loaded, `micd.config` will contain the actual runtime configuration of the library, including any defaulted values, and further changes will have no effect.
+   * Properties defined in `micd.config` before loading the API will modify the API configuration. After the API is loaded, `micd.config` will contain the actual runtime configuration of the API, including any defaulted values, and further changes will have no effect. If loading the API as an ES6 or Node.js module, configuration options can be passed to `createApi` instead.
    */
   var config: ConfigOptions;
 
@@ -2950,12 +6118,12 @@ declare namespace micd {
     experimentalFeatures?: boolean | null;
 
     /**
-     * A string naming the global mode that the library will run in. Default is `"api"`. Possible values:
+     * A string naming the global mode that the API will run in. Default is `"api"`. Possible values:
      * 
-     * - `"api"`: Loads and initializes the library, calling [[micd.onReady]] once the library is available, but takes no further action. This is the default mode.
-     * - `"editor"`: Loads and initializes the library, then injects a full-page [[Shell]] into the page. The [[micd.onReady]] function is only called after the shell is injected. The shell can be accessed programmatically through [[micd.shell.shared]].
-     * - `"help"`: Injects a table of available commands with their keyboard shortcuts and abbreviations into the page. Only the parts of the library needed to produce the table will be loaded, so the API will not be fully functional and cannot be relied on for other purposes.
-     * - `"test"`: Performs a low-level self-test of the library.
+     * - `"api"`: Loads and initializes the API, calling [[micd.onReady]] once the API is available, but takes no further action. This is the default mode.
+     * - `"editor"`: Loads and initializes the API, then injects a full-page [[Shell]] into the page. The [[micd.onReady]] function is only called after the shell is injected. The shell can be accessed programmatically through [[micd.shell.shared]].
+     * - `"help"`: Injects a table of available commands with their keyboard shortcuts and abbreviations into the page. Only the parts of the API needed to produce the table will be loaded, so the API will not be fully functional and cannot be relied on for other purposes.
+     * - `"test"`: Performs a low-level self-test of the API.
      */
     mode?: "api" | "editor" | "help" | "test" | null;
 
@@ -2995,94 +6163,3 @@ declare namespace micd {
     helpTable?: micd.ui.HelpTableTemplate | null;
   }
 }
-declare namespace micd {
-  /**
-   * Supports desktop app plugins.
-   * 
-   * *App exists only for plugins running in the desktop app. It is **undefined** when using the browser API.*
-   */
-  class App {
-    /** The version of the desktop app that the plugin is running in. */
-    static version: string;
-    /** Provides access to a simple key store. */
-    static storage: App.PluginStorage;
-    /** Provides access to the clipboard. */
-    static clipboard: App.PluginClipboardAccess;
-    /** Contains properties that describe the host platform. */
-    static platform: App.PlatformInfo;
-    /**
-     * Register a custom palette. Custom palettes can be added to the side panels through the panel customization dialog. Custom palette buttons can be defined, but `onUse` and `onAdd` must be set to strings whose content is script code that defines the body of the respective listener function. See [[PaletteButtonTemplate]].
-     * 
-     * @param label The text that the palette will display as its name. Any existing custom palette with the same name will be replaced.
-     * @param rows The button rows that make up the palette. Passing null will remove any previously registered custom palette with the same name.
-     */
-    static registerPalette(label: string, rows: micd.shell.PaletteRowTemplate[] | null): void;
-    /** Displays the panel customization dialog. */
-    static openPanelCustomizer(): void;
-  }
-  module App {
-    /**
-     * Allows plug-ins to store and recall string values. Stored values persist between app runs. They can be accessed by other plugins or by the same plugin running in other editor windows.
-     */
-    interface PluginStorage {
-      /**
-       * Returns the value of the specified key, or the default value if the key is not present.
-       * 
-       * @param key The name of the desired metadata property.
-       * @param defaultValue An optional default returned if the key is not present.
-       * @returns The value of the key, if present; otherwise the default value, or `undefined` if no default was specified.
-       */
-      get(key: string, defaultValue?: string): string | null;
-      /**
-       * Sets the value of the specified key. Setting a key to `undefined` or `null` has the same effect as removing the key.
-       * 
-       * @param key The name of the desired metadata property.
-       * @param value The value to associate with the key.
-       */
-      set(key: string, defaultValue?: string): void;
-      /**
-       * Removes the specified key, if it is present.
-       * 
-       * @param key The name of the key.
-       */
-      remove(key: string): void;
-      /**
-       * Returns a new array containing a copy of all of the defined keys. The order of the keys in the array is not guaranteed.
-       * 
-       * @returns A (possibly empty) array of the key names of all currently stored values.
-       */
-      keys(): string[];
-    }
-
-    /** Convenient clipboard access. */
-    interface PluginClipboardAccess {
-      /**
-       * Copies plain text to the clipboard.
-       * @param text The text to copy.
-       */
-      copyText(text: string): void;
-      /**
-       * Copies an image supplied to the clipboard.
-       * @param pngDataUrl The data URL of an image, in the PNG image format, to copy.
-       */
-      copyImage(pngDataUrl: string): void;
-    }
-
-    /** Properties that describe the type of device that the app is running on. */
-    interface PlatformInfo {
-      /** True if the editor app is running on a Linux device. */
-      isLinux: boolean;
-      /** True if the editor app is running on a MacOS device. */
-      isMacOs: boolean;
-      /** True if the editor app is running on a Windows device. */
-      isWindow: boolean;
-    }
-  }
-}
-
-/** The Shell instance in the app window where the plugin is running. */
-declare var shell: micd.shell.Shell;
-/** The View instance in the app window where the plugin is running. */
-declare var view: micd.View;
-/** The Editor instance in the app window where the plugin is running. */
-declare var editor: micd.Editor;
